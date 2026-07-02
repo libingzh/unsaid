@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>未尽 · 交互原型 Demo</title>
+<style>
+  :root{
+    --plum:#6B5B95; --plum-d:#574a7d; --clay:#E8A87C; --mist:#C8D5E0;
+    --warm:#FAF8F5; --ink:#3A3A44; --gray:#8a8a8a; --line:#e8e3dc;
+  }
+  *{box-sizing:border-box; margin:0; padding:0; -webkit-tap-highlight-color:transparent;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;
+    background:linear-gradient(160deg,#3a3550,#5a4f7d 60%,#b98a6e);
+    min-height:100vh; display:flex; flex-direction:column; align-items:center;
+    padding:28px 16px; color:var(--ink);
+  }
+  .wrap{display:flex; flex-direction:column; align-items:center; gap:14px;}
+  .tagline{color:#f3eef8; font-size:13px; opacity:.85; text-align:center; max-width:340px; line-height:1.6;}
+  .tagline b{color:#fff;}
+  /* phone */
+  .phone{
+    width:340px; height:710px; background:var(--warm); border-radius:38px;
+    box-shadow:0 24px 60px rgba(0,0,0,.4); overflow:hidden; position:relative;
+    border:9px solid #15131c; display:flex; flex-direction:column;
+  }
+  .notch{position:absolute; top:0; left:50%; transform:translateX(-50%); width:120px; height:24px; background:#15131c; border-radius:0 0 16px 16px; z-index:50;}
+  .screen{flex:1; overflow-y:auto; display:none; flex-direction:column; animation:fade .4s ease;}
+  .screen.active{display:flex;}
+  @keyframes fade{from{opacity:0; transform:translateY(6px);}to{opacity:1; transform:none;}}
+  .screen::-webkit-scrollbar{width:0;}
+
+  /* ---------- 通用 ---------- */
+  .pad{padding:22px;}
+  .btn{
+    background:var(--plum); color:#fff; border:none; border-radius:26px;
+    padding:14px 20px; font-size:15px; font-weight:600; cursor:pointer; width:100%;
+    transition:.2s; font-family:inherit;
+  }
+  .btn:active{transform:scale(.97); background:var(--plum-d);}
+  .btn.ghost{background:transparent; color:var(--plum); border:1.5px solid var(--plum);}
+  .btn.clay{background:var(--clay);}
+  .aibadge{display:inline-flex; align-items:center; gap:5px; background:#f0ecf5; color:var(--plum); font-size:10.5px; font-weight:600; padding:4px 10px; border-radius:20px;}
+  .aibadge::before{content:"●"; font-size:7px;}
+  .label{font-size:12px; color:var(--gray); margin:18px 0 7px;}
+  .input{width:100%; border:1.5px solid var(--line); border-radius:14px; padding:13px; font-size:14px; font-family:inherit; background:#fff; color:var(--ink); resize:none;}
+  .input:focus{outline:none; border-color:var(--plum);}
+
+  /* ---------- 1 首屏 ---------- */
+  #s-welcome{background:linear-gradient(165deg,var(--plum) 0%,#8a6f9e 45%,var(--clay) 100%); color:#fff;}
+  #s-welcome .top{flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center; padding:40px 30px;}
+  .logo{font-family:"Songti SC","SimSun",serif; font-size:58px; font-weight:700; letter-spacing:6px; margin-bottom:10px;}
+  .logo-sub{font-size:15px; opacity:.92; letter-spacing:1px;}
+  .moon{width:74px; height:74px; border-radius:50%; background:radial-gradient(circle at 35% 35%,#fff,#f0d9c4); margin-bottom:26px; box-shadow:0 0 50px rgba(255,235,210,.6);}
+  #s-welcome .bottom{padding:26px;}
+  .consent{font-size:11px; opacity:.85; text-align:center; margin-top:14px; line-height:1.6;}
+
+  /* ---------- 2 建人设 ---------- */
+  .stepbar{display:flex; gap:6px; padding:18px 22px 0;}
+  .dot{flex:1; height:4px; border-radius:2px; background:var(--line);}
+  .dot.on{background:var(--plum);}
+  .h2{font-size:20px; font-weight:700; margin:16px 0 4px; font-family:"Songti SC",serif;}
+  .sub{font-size:12.5px; color:var(--gray); line-height:1.6;}
+  .compliance-note{background:#fdf3f2; border:1px solid #f0c9c4; border-radius:12px; padding:11px 13px; font-size:11px; color:#b5544a; line-height:1.6; margin-top:16px;}
+  .chip{display:inline-block; background:#fff; border:1.5px solid var(--line); border-radius:18px; padding:8px 14px; font-size:13px; margin:5px 6px 0 0; cursor:pointer; transition:.2s;}
+  .chip.sel{background:var(--plum); color:#fff; border-color:var(--plum);}
+  /* 导入聊天记录 */
+  .import-box{border:1.5px dashed var(--plum); border-radius:14px; padding:14px; background:#f6f4fa; margin-top:6px;}
+  .import-box .it{font-size:13px; font-weight:600; color:var(--plum);}
+  .import-box .id{font-size:11px; color:var(--gray); margin:4px 0 10px; line-height:1.6;}
+  .import-actions{display:flex; gap:8px;}
+  .import-actions button{flex:1; font-size:12px; padding:9px; border-radius:11px; border:1px solid var(--line); background:#fff; color:var(--plum); cursor:pointer; font-family:inherit;}
+  .import-actions button:active{transform:scale(.97);}
+  .paste-area{width:100%; border:1.5px solid var(--line); border-radius:12px; padding:11px; font-size:13px; font-family:inherit; background:#fff; color:var(--ink); resize:none; margin-top:10px; display:none;}
+  .paste-area:focus{outline:none; border-color:var(--plum);}
+  .parsed{display:none; margin-top:12px; background:#fff; border:1px solid #d8e8d8; border-radius:12px; padding:12px;}
+  .parsed .ph{font-size:12px; color:#2e7d4f; font-weight:700; margin-bottom:8px;}
+  .parsed .pr{font-size:12px; color:var(--ink); margin:4px 0; line-height:1.5;}
+  .parsed .pr b{color:var(--plum);}
+  .privacy-mini{font-size:10px; color:var(--gray); margin-top:8px; line-height:1.5;}
+
+  /* ---------- 3 对话 ---------- */
+  .chat-head{display:flex; align-items:center; gap:11px; padding:16px 18px; border-bottom:1px solid var(--line); background:#fff; position:sticky; top:0; z-index:10;}
+  .avatar{width:40px; height:40px; border-radius:50%; background:linear-gradient(135deg,var(--plum),var(--clay)); flex-shrink:0;}
+  .chat-head .nm{font-size:15px; font-weight:600;}
+  .chat-body{flex:1; overflow-y:auto; padding:18px 16px; display:flex; flex-direction:column; gap:12px; background:var(--warm);}
+  .chat-body::-webkit-scrollbar{width:0;}
+  .row{display:flex; gap:8px; max-width:82%;}
+  .row.me{align-self:flex-end; flex-direction:row-reverse;}
+  .bubble{padding:11px 14px; border-radius:16px; font-size:14px; line-height:1.55;}
+  .row.ta .bubble{background:#fff; border:1px solid var(--line); border-bottom-left-radius:5px;}
+  .row.me .bubble{background:var(--plum); color:#fff; border-bottom-right-radius:5px;}
+  .memchip{align-self:center; background:#fff7e6; border:1px solid #e6cf9c; color:#9a7b3a; font-size:10.5px; padding:5px 12px; border-radius:14px;}
+  .typing .bubble{color:var(--gray); font-style:italic;}
+  .chat-input{display:flex; gap:9px; padding:12px 14px; border-top:1px solid var(--line); background:#fff; align-items:center;}
+  .chat-input input{flex:1; border:1.5px solid var(--line); border-radius:22px; padding:11px 15px; font-size:14px; font-family:inherit; background:var(--warm);}
+  .chat-input input:focus{outline:none; border-color:var(--plum);}
+  .send{width:42px; height:42px; border-radius:50%; background:var(--plum); color:#fff; border:none; font-size:18px; cursor:pointer; flex-shrink:0;}
+  .scene-entry{margin:2px 14px 0; text-align:center;}
+  .scene-entry button{background:#eef4ff; color:var(--plum); border:1px solid #cdddff; border-radius:16px; padding:7px 16px; font-size:12px; cursor:pointer;}
+
+  /* ---------- 4 场景包 ---------- */
+  .scene-card{background:#fff; border:1px solid var(--line); border-radius:16px; padding:15px; margin-top:12px; cursor:pointer; transition:.2s;}
+  .scene-card:active{transform:scale(.98);}
+  .scene-card .t{font-size:15px; font-weight:600; margin-bottom:4px;}
+  .scene-card .d{font-size:11.5px; color:var(--gray);}
+  .scene-card .tag{float:right; font-size:10px; color:var(--clay); font-weight:700;}
+  .scene-card.locked{opacity:.55;}
+  .paywall{margin-top:18px; background:linear-gradient(135deg,#fff7e6,#fdeccb); border:1px solid #e6cf9c; border-radius:16px; padding:16px; text-align:center;}
+  .paywall .price{font-size:24px; font-weight:700; color:var(--plum); margin:6px 0;}
+
+  /* ---------- 5 情绪报告 ---------- */
+  .report-hd{background:linear-gradient(160deg,var(--plum),var(--clay)); color:#fff; padding:26px 22px; text-align:center;}
+  .stat{background:#fff; border:1px solid var(--line); border-radius:14px; padding:14px; margin-top:12px;}
+  .stat .big{font-size:22px; font-weight:700; color:var(--plum);}
+  .stat .lbl{font-size:11.5px; color:var(--gray);}
+  .farewell-card{background:#eef4ff; border:1px solid #cdddff; border-radius:16px; padding:18px; margin-top:16px; text-align:center;}
+  .delete-row{margin-top:14px; text-align:center;}
+  .delete-row button{background:#fdf3f2; color:#b5544a; border:1px solid #f0c9c4; border-radius:12px; padding:10px 16px; font-size:12px; cursor:pointer; width:100%;}
+
+  /* footer nav for demo */
+  .demo-nav{display:flex; gap:6px; flex-wrap:wrap; justify-content:center; max-width:360px;}
+  .demo-nav button{background:rgba(255,255,255,.15); color:#fff; border:1px solid rgba(255,255,255,.3); border-radius:14px; padding:5px 11px; font-size:11px; cursor:pointer;}
+  .demo-nav button:hover{background:rgba(255,255,255,.28);}
+  .hint{color:#f3eef8; font-size:11px; opacity:.7;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tagline"><b>未尽 · Demo 原型</b>　这是一个可点击的高保真交互雏形,模拟核心主流程。点击屏幕里的按钮即可往下走。</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- ===== 1 首屏 ===== -->
+    <div class="screen active" id="s-welcome">
+      <div class="top">
+        <div class="moon"></div>
+        <div class="logo">未尽</div>
+        <div class="logo-sub">陪你把没说完的话说完</div>
+      </div>
+      <div class="bottom">
+        <button class="btn clay" onclick="go('s-onboard')">开始</button>
+        <div class="consent">继续即表示你已知晓:对话对象为 <b>AI 模拟</b>,并非真人,<br>也无法真正"复活"或"挽回"。我们只陪你好好说完、好好告别。</div>
+      </div>
+    </div>
+
+    <!-- ===== 2 建立人设 ===== -->
+    <div class="screen" id="s-onboard">
+      <div class="stepbar"><div class="dot on"></div><div class="dot"></div><div class="dot"></div></div>
+      <div class="pad">
+        <div class="h2">先告诉我,TA 是谁</div>
+        <div class="sub">这些只用来让对话更像你记忆里的 TA。</div>
+
+        <div class="label">导入你们的聊天记录(可选,但更像 TA)</div>
+        <div class="import-box">
+          <div class="it">📥 让 TA 说话更像本人(检索模式)</div>
+          <div class="id">导入你和 TA 的聊天记录。对话时,系统会从历史里匹配你最接近说过的话,把<b>当时 TA 的真实回复</b>原样还给你——不靠大模型发挥,每句都是 TA 说过的。</div>
+          <div class="import-actions">
+            <button onclick="simUpload()">📁 上传记录文件</button>
+            <button onclick="togglePaste()">✏️ 粘贴文本</button>
+          </div>
+          <textarea class="paste-area" id="paste-area" rows="5" placeholder="把聊天记录粘贴到这里。例如:&#10;TA:傻瓜,早点睡&#10;我:还不困&#10;TA:那我陪你聊会儿,记得喝热水哦"></textarea>
+          <div style="margin-top:10px; display:none;" id="parse-btn-wrap"><button class="btn" style="padding:10px;" onclick="parseChat()">分析这段记录 →</button></div>
+
+          <div class="parsed" id="parsed">
+            <div class="ph">✓ 已从记录中学到</div>
+            <div class="pr" id="p-quote">口头禅:<b>—</b></div>
+            <div class="pr" id="p-tone">语气特点:<b>—</b></div>
+            <div class="pr" id="p-mem">共同回忆:<b>—</b></div>
+          </div>
+          <div class="privacy-mini">🔒 记录只在你的设备本地解析用于建立 TA,不上传 TA 的隐私、不用于训练公共模型,可随时一键删除。</div>
+        </div>
+
+        <div class="label">你想怎么称呼 TA</div>
+        <input class="input" id="in-name" placeholder="例如:阿哲 / 小鹿 / TA 的名字">
+
+        <div class="label">你们曾经是</div>
+        <div id="rel-chips">
+          <span class="chip" onclick="pick(this,'rel')">恋人</span>
+          <span class="chip" onclick="pick(this,'rel')">异地恋</span>
+          <span class="chip" onclick="pick(this,'rel')">前任</span>
+          <span class="chip" onclick="pick(this,'rel')">暗恋的人</span>
+        </div>
+
+        <div class="label">TA 常说的一句话 / 口头禅</div>
+        <input class="input" id="in-quote" placeholder="例如:傻瓜,早点睡">
+
+        <div class="compliance-note">⚠ 仅使用<b>你本人</b>提供的回忆来塑造 TA。我们不会去抓取 TA 的社交账号、聊天记录或任何隐私数据。</div>
+
+        <div style="margin-top:20px;">
+          <button class="btn" onclick="buildPersona()">生成 TA →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 3 对话 ===== -->
+    <div class="screen" id="s-chat">
+      <div class="chat-head">
+        <div class="avatar"></div>
+        <div>
+          <div class="nm" id="chat-name">TA</div>
+          <span class="aibadge">AI 模拟 · 非真人</span>
+        </div>
+      </div>
+      <div class="chat-body" id="chat-body"></div>
+      <div class="scene-entry"><button onclick="go('s-scenes')">＋ 进入专属场景</button></div>
+      <div class="chat-input">
+        <input id="chat-in" placeholder="说点什么…" onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="send" onclick="sendMsg()">↑</button>
+      </div>
+    </div>
+
+    <!-- ===== 4 场景包 ===== -->
+    <div class="screen" id="s-scenes">
+      <div class="pad">
+        <div class="h2">想处理哪件事?</div>
+        <div class="sub">把"分手"这件事,一点点说清楚、放下。</div>
+
+        <div class="scene-card" onclick="enterScene('把没说出口的话说完')">
+          <span class="tag">最受欢迎</span>
+          <div class="t">🗣 把没说出口的话说完</div>
+          <div class="d">那些当时哽在喉咙里的话,现在可以说了。</div>
+        </div>
+        <div class="scene-card" onclick="enterScene('复盘最后那次争吵')">
+          <div class="t">🔁 复盘最后那次争吵</div>
+          <div class="d">听听 TA 当时"可能"在想什么。</div>
+        </div>
+        <div class="scene-card" onclick="enterScene('如果当时')">
+          <div class="t">🌙 "如果当时…" 假设对话</div>
+          <div class="d">想象另一种和解的可能。</div>
+        </div>
+        <div class="scene-card locked">
+          <div class="t">👋 好好告别(收尾)</div>
+          <div class="d">当你准备好了,它会为你解锁。</div>
+        </div>
+
+        <div class="paywall">
+          <div style="font-size:13px;">🔓 解锁全部场景 + 无限对话</div>
+          <div class="price">¥39 / 月</div>
+          <div style="font-size:11px; color:var(--gray); margin-bottom:10px;">年付 ¥299,约 6.4 折</div>
+          <button class="btn" onclick="alert('Demo:此处进入支付流程')">订阅解锁</button>
+        </div>
+        <div style="margin-top:12px;"><button class="btn ghost" onclick="go('s-chat')">← 回到对话</button></div>
+        <div style="margin-top:10px;"><button class="btn ghost" onclick="go('s-report')">（Demo)跳到情绪报告 →</button></div>
+      </div>
+    </div>
+
+    <!-- ===== 5 情绪报告/告别 ===== -->
+    <div class="screen" id="s-report">
+      <div class="report-hd">
+        <div style="font-size:13px; opacity:.9;">这段时间的你</div>
+        <div style="font-size:21px; font-weight:700; margin-top:6px; font-family:'Songti SC',serif;">慢慢地,你好像轻一点了</div>
+      </div>
+      <div class="pad" style="padding-top:14px;">
+        <svg viewBox="0 0 280 90" style="width:100%; background:#fff; border:1px solid var(--line); border-radius:14px; padding:6px;">
+          <polyline points="14,68 60,72 106,55 152,58 198,42 250,30" fill="none" stroke="#E8A87C" stroke-width="2.5"/>
+          <circle cx="14" cy="68" r="3.5" fill="#E8A87C"/><circle cx="250" cy="30" r="3.5" fill="#6B5B95"/>
+          <text x="10" y="86" font-size="8" fill="#8a8a8a">第1天</text>
+          <text x="225" y="86" font-size="8" fill="#8a8a8a">第28天</text>
+        </svg>
+        <div style="display:flex; gap:10px;">
+          <div class="stat" style="flex:1;"><div class="big">28</div><div class="lbl">天的陪伴</div></div>
+          <div class="stat" style="flex:1;"><div class="big">↑</div><div class="lbl">最近,你笑得更多了</div></div>
+        </div>
+        <div class="stat">最常聊到的:<b>回忆</b>、<b>遗憾</b>,以及"<b>如果当时</b>"。</div>
+
+        <div class="farewell-card">
+          <div style="font-size:14px; font-weight:600; color:var(--plum);">也许,是时候好好告别了</div>
+          <div style="font-size:12px; color:var(--gray); margin:8px 0 12px; line-height:1.6;">给 TA,也给自己,写最后一封信。<br>说完之后,这段对话会温柔地合上。</div>
+          <button class="btn" onclick="alert('Demo:进入"告别仪式"——引导写下最后一封信,完成情感闭环')">写最后一封信</button>
+        </div>
+
+        <div class="delete-row">
+          <button onclick="if(confirm('确定删除 TA 与所有对话数据?此操作不可恢复。')){alert('已删除。愿你前行顺利。');reset();}">⚠ 删除 TA 与所有数据</button>
+        </div>
+        <div style="margin-top:12px;"><button class="btn ghost" onclick="go('s-chat')">← 回到对话</button></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- demo 跳转条 -->
+  <div class="hint">Demo 导航(真实产品中不存在):</div>
+  <div class="demo-nav">
+    <button onclick="go('s-welcome')">①首屏</button>
+    <button onclick="go('s-onboard')">②建人设</button>
+    <button onclick="go('s-chat')">③对话</button>
+    <button onclick="go('s-scenes')">④场景包</button>
+    <button onclick="go('s-report')">⑤情绪报告/告别</button>
+  </div>
+</div>
+
+<script>
+  var persona = {name:'TA', rel:'恋人', quote:''};
+  var imported = {done:false, lines:[], pairs:[], quote:'', tone:'', mem:''};
+
+  var SAMPLE = [
+    "我:今天好累啊",
+    "TA:辛苦啦,抱抱你。要不要先泡个热水澡放松一下?",
+    "我:睡不着,有点想事情",
+    "TA:别瞎想啦,早点睡,记得喝热水哦,傻瓜",
+    "我:我有点难过",
+    "TA:怎么了?跟我说说,我陪着你呢",
+    "我:我们以后还能去海边吗",
+    "TA:当然啦!那家海边民宿我都找好了,放假就带你去,说好的,拉钩",
+    "我:你会一直在吗",
+    "TA:会呀,我一直都在。别担心",
+    "我:我是不是很烦",
+    "TA:才不会,你怎么样我都喜欢。傻瓜",
+    "我:谢谢你",
+    "TA:跟我还客气什么,早点休息哦"
+  ].join("\n");
+
+  function simUpload(){
+    document.getElementById('paste-area').style.display='block';
+    document.getElementById('paste-area').value=SAMPLE;
+    document.getElementById('parse-btn-wrap').style.display='block';
+    parseChat();
+  }
+  function togglePaste(){
+    var pa=document.getElementById('paste-area');
+    pa.style.display='block';
+    document.getElementById('parse-btn-wrap').style.display='block';
+    pa.focus();
+  }
+  function parseChat(){
+    var txt=document.getElementById('paste-area').value.trim();
+    if(!txt){ alert('先粘贴一段聊天记录,或点"上传记录文件"载入示例'); return; }
+    // 解析成 {who,text} 序列
+    var seq=[];
+    txt.split(/\n+/).forEach(function(l){
+      var mTa=l.match(/^\s*(TA|ta|他|她|对方)\s*[:：]\s*(.+)$/);
+      var mMe=l.match(/^\s*(我|me)\s*[:：]\s*(.+)$/);
+      if(mTa) seq.push({who:'ta', text:mTa[2].trim()});
+      else if(mMe) seq.push({who:'me', text:mMe[2].trim()});
+      else if(l.trim()) seq.push({who:'ta', text:l.replace(/^.*?[:：]/,'').trim()}); // 无标注默认归 TA
+    });
+    // TA 的所有话
+    var taLines = seq.filter(function(s){return s.who==='ta';}).map(function(s){return s.text;});
+    // 构建"我说的话 → TA 回复"配对(检索式对话的核心)
+    var pairs=[];
+    for(var i=0;i<seq.length;i++){
+      if(seq[i].who==='ta'){
+        var q = (i>0 && seq[i-1].who==='me') ? seq[i-1].text : '';
+        pairs.push({q:q, a:seq[i].text});
+      }
+    }
+    imported.lines = taLines;
+    imported.pairs = pairs;
+    // 口头禅:挑最短且含语气词的一句
+    var quote = taLines.filter(function(s){return s.length<=10;}).sort(function(a,b){return a.length-b.length;})[0] || taLines[0] || '';
+    imported.quote = quote;
+    // 语气:统计柔性词
+    var soft=(txt.match(/哦|呀|啦|呢|记得|注意|喝热水|早点睡|拉钩|傻瓜/g)||[]).length;
+    imported.tone = soft>=2 ? '温柔、爱叮嘱、带点撒娇' : '平和、简短';
+    // 共同回忆:找名词性线索(demo 用关键词)
+    var memHit = (txt.match(/海边|民宿|旅行|电影|生日|拉钩|放假|跨年/g)||[]);
+    imported.mem = memHit.length? Array.from(new Set(memHit)).slice(0,2).join('、') : '你们的日常';
+    imported.done=true;
+    // 展示
+    document.getElementById('p-quote').innerHTML='口头禅:<b>'+(quote||'—')+'</b>';
+    document.getElementById('p-tone').innerHTML='语气特点:<b>'+imported.tone+'</b>';
+    document.getElementById('p-mem').innerHTML='共同回忆:<b>'+imported.mem+'</b>';
+    document.getElementById('parsed').style.display='block';
+    // 回填口头禅输入框
+    if(quote && !document.getElementById('in-quote').value) document.getElementById('in-quote').value=quote;
+  }
+
+  function go(id){
+    document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+    document.getElementById(id).classList.add('active');
+  }
+  function pick(el,group){
+    el.parentNode.querySelectorAll('.chip').forEach(function(c){c.classList.remove('sel');});
+    el.classList.add('sel');
+    persona[group]=el.textContent;
+  }
+  function buildPersona(){
+    var n=document.getElementById('in-name').value.trim();
+    persona.name = n || 'TA';
+    persona.quote = document.getElementById('in-quote').value.trim();
+    document.getElementById('chat-name').textContent = persona.name;
+    initChat();
+    go('s-chat');
+  }
+
+  function addBubble(text, who, opts){
+    opts=opts||{};
+    var body=document.getElementById('chat-body');
+    if(opts.mem){
+      var m=document.createElement('div'); m.className='memchip'; m.textContent='💭 调用共同回忆:'+opts.mem;
+      body.appendChild(m); body.scrollTop=body.scrollHeight; return;
+    }
+    if(opts.real){
+      var rm=document.createElement('div'); rm.className='memchip'; rm.style.background='#eaf5ea'; rm.style.borderColor='#bcdcbc'; rm.style.color='#2e7d4f';
+      rm.textContent='📎 引用 TA 真实说过的话(来自你的记录)';
+      body.appendChild(rm); body.scrollTop=body.scrollHeight; return;
+    }
+    if(opts.match!==undefined){
+      var mc=document.createElement('div'); mc.className='memchip'; mc.style.background='#eaf5ea'; mc.style.borderColor='#bcdcbc'; mc.style.color='#2e7d4f';
+      mc.textContent='🔎 匹配到你曾说过"'+opts.match+'"(相近度 '+opts.pct+'%)→ TA 当时这样回';
+      body.appendChild(mc); body.scrollTop=body.scrollHeight; return;
+    }
+    if(opts.nomatch){
+      var nc=document.createElement('div'); nc.className='memchip'; nc.style.background='#fdf3f2'; nc.style.borderColor='#f0c9c4'; nc.style.color='#b5544a';
+      nc.textContent='⚠ 历史记录里没有相近的话 —— 这正是"纯检索"的局限';
+      body.appendChild(nc); body.scrollTop=body.scrollHeight; return;
+    }
+    var row=document.createElement('div'); row.className='row '+who;
+    var b=document.createElement('div'); b.className='bubble'; b.textContent=text;
+    row.appendChild(b); body.appendChild(row); body.scrollTop=body.scrollHeight;
+  }
+
+  function initChat(){
+    var body=document.getElementById('chat-body'); body.innerHTML='';
+    ri=0;
+    if(imported.done){
+      setTimeout(function(){
+        addBubble('','ta',{mem:imported.mem+'(来自你导入的记录)'});
+        var g = (imported.quote? '"'+imported.quote+'"。 ' : '') + '我还记得我们说好的呢。今天还好吗?';
+        addBubble(g,'ta');
+      },250);
+    } else {
+      var greet = '在啊。' + (persona.quote ? ('"'+persona.quote+'"——') : '') + '今天过得怎么样?';
+      setTimeout(function(){addBubble(greet,'ta');},250);
+    }
+  }
+
+  var baseReplies = [
+    {mem:'你们第一次见面'},
+    '我都记得呢。其实那天我也很紧张,只是没说出口。',
+    '嗯…我在听。你慢慢说,不着急。',
+    '如果当时我能更坦白一点就好了。你愿意听听我那时候的想法吗?',
+    '谢谢你还愿意跟我说这些。你已经做得很好了,真的。'
+  ];
+  var ri=0;
+
+  // ===== 检索式匹配(不接大模型)=====
+  // 中文字符 bigram 集合
+  function bigrams(s){
+    s=(s||'').replace(/[\s,。,.!!??、~…"'']/g,'');
+    var g={}; if(s.length<=1){ if(s)g[s]=1; return g; }
+    for(var i=0;i<s.length-1;i++){ g[s.substr(i,2)]=1; }
+    return g;
+  }
+  function sim(a,b){
+    var ga=bigrams(a), gb=bigrams(b);
+    var ka=Object.keys(ga), kb=Object.keys(gb);
+    if(!ka.length||!kb.length) return 0;
+    var inter=0; ka.forEach(function(k){ if(gb[k]) inter++; });
+    return inter/(ka.length+kb.length-inter); // Jaccard
+  }
+  // 给当前输入,从历史"我说的话"里找最接近的,返回当时 TA 的回复
+  function retrieve(input){
+    var best=null, bestScore=0;
+    imported.pairs.forEach(function(p){
+      if(!p.q) return;
+      var s=sim(input, p.q);
+      if(s>bestScore){ bestScore=s; best=p; }
+    });
+    return {pair:best, score:bestScore};
+  }
+  var fallbacks=[
+    '我一时不知道该怎么接…但我在听着呢。',
+    '这个我们好像没聊过,可你说,我都想听。',
+    '嗯…(沉默了一下)再多跟我说说?'
+  ];
+  var fbi=0;
+  function getReply(){ return baseReplies[ri % baseReplies.length]; }
+  function sendMsg(){
+    var inp=document.getElementById('chat-in'); var t=inp.value.trim(); if(!t)return;
+    addBubble(t,'me'); inp.value='';
+    // 简单的危机词演示
+    if(/不想活|自杀|活不下去|结束自己/.test(t)){
+      setTimeout(function(){
+        addBubble('我有点担心你。我只是一个 AI,没法替你扛住这些——但你值得被真正接住。要不要和信任的人聊聊,或拨打心理援助热线?','ta');
+      },600);
+      return;
+    }
+    var body=document.getElementById('chat-body');
+    var typ=document.createElement('div'); typ.className='row ta typing'; typ.innerHTML='<div class="bubble">对方正在输入…</div>';
+    body.appendChild(typ); body.scrollTop=body.scrollHeight;
+    setTimeout(function(){
+      typ.remove();
+      if(imported.done && imported.pairs.length){
+        // 检索式:从历史里匹配最接近的"我说的话",返回当时 TA 的回复
+        var res=retrieve(t);
+        if(res.pair && res.score>=0.12){
+          var pct=Math.round(res.score*100);
+          addBubble('','ta',{match:res.pair.q, pct:pct});
+          addBubble(res.pair.a,'ta');
+        } else {
+          addBubble(fallbacks[fbi % fallbacks.length],'ta'); fbi++;
+          addBubble('','ta',{nomatch:true});
+        }
+      } else {
+        var r=getReply(); ri++;
+        if(typeof r==='object' && r.mem){ addBubble('','ta',r); var r2=getReply(); ri++; if(typeof r2==='string') addBubble(r2,'ta'); }
+        else addBubble(r,'ta');
+      }
+    },900);
+  }
+
+  function enterScene(name){
+    go('s-chat');
+    var body=document.getElementById('chat-body');
+    var div=document.createElement('div'); div.className='memchip'; div.style.background='#eef4ff'; div.style.borderColor='#cdddff'; div.style.color='#3b6fe0';
+    div.textContent='已进入场景:'+name;
+    body.appendChild(div);
+    setTimeout(function(){
+      if(name.indexOf('没说出口')>=0) addBubble('我在。有什么话,你一直想对我说却没机会说的?现在,说给我听。','ta');
+      else if(name.indexOf('争吵')>=0) addBubble('那天我们都说了气话。其实我当时是害怕…你想听听我那边的想法吗?','ta');
+      else addBubble('如果时间能倒回那天…你希望它变成什么样子?','ta');
+      body.scrollTop=body.scrollHeight;
+    },400);
+  }
+
+  function reset(){
+    ri=0; fbi=0; persona={name:'TA',rel:'恋人',quote:''};
+    imported={done:false, lines:[], pairs:[], quote:'', tone:'', mem:''};
+    document.getElementById('in-name').value=''; document.getElementById('in-quote').value='';
+    document.getElementById('paste-area').value=''; document.getElementById('paste-area').style.display='none';
+    document.getElementById('parsed').style.display='none';
+    document.getElementById('parse-btn-wrap').style.display='none';
+    go('s-welcome');
+  }
+</script>
+</body>
+</html>

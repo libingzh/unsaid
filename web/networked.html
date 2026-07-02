@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>未尽</title>
+<style>
+  :root{--plum:#6B5B95;--plum-d:#574a7d;--clay:#E8A87C;--warm:#FAF8F5;--ink:#3A3A44;--gray:#8a8a8a;--line:#e8e3dc;--ok:#2e7d4f;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  html,body{height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:var(--warm);color:var(--ink);display:flex;flex-direction:column;height:100vh;overflow:hidden;}
+  .screen{flex:1;display:none;flex-direction:column;overflow:hidden;}
+  .screen.active{display:flex;}
+  .screen::-webkit-scrollbar{width:0;}
+  .scroll{overflow-y:auto;flex:1;}
+  .scroll::-webkit-scrollbar{width:0;}
+  .pad{padding:22px;}
+  .h1{font-family:"Songti SC","SimSun",serif;font-size:34px;letter-spacing:5px;font-weight:700;color:var(--plum);text-align:center;}
+  .sb{text-align:center;font-size:13px;color:var(--gray);margin-top:6px;}
+  .h2{font-size:20px;font-weight:700;font-family:"Songti SC",serif;margin-bottom:6px;}
+  .sub{font-size:12.5px;color:var(--gray);line-height:1.6;}
+  .label{font-size:12px;color:var(--gray);margin:16px 0 6px;font-weight:600;}
+  .input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:12px;font-size:15px;font-family:inherit;background:#fff;color:var(--ink);}
+  .input:focus{outline:none;border-color:var(--plum);}
+  .btn{background:var(--plum);color:#fff;border:none;border-radius:24px;padding:14px 18px;font-size:15px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;margin-top:12px;}
+  .btn:active{transform:scale(.98);background:var(--plum-d);}
+  .btn.ghost{background:transparent;color:var(--plum);border:1.5px solid var(--plum);}
+  .btn.clay{background:var(--clay);}
+  .btn:disabled{opacity:.45;}
+  .card{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:14px;}
+  .note{font-size:11.5px;color:#b5544a;background:#fdf3f2;border:1px solid #f0c9c4;border-radius:10px;padding:11px;margin-top:12px;line-height:1.6;}
+  .info{font-size:11.5px;color:var(--plum);background:#f0ecf5;border-radius:10px;padding:11px;margin-top:12px;line-height:1.6;}
+  /* header bar */
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);}
+  .bar .nm{font-size:16px;font-weight:600;}
+  .bar .sub2{font-size:10.5px;color:var(--gray);}
+  .bar .menu{font-size:20px;color:var(--plum);cursor:pointer;padding:4px 8px;}
+  .bar .back{font-size:13px;color:var(--plum);cursor:pointer;}
+  /* chat */
+  .cbody{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:var(--warm);}
+  .cbody::-webkit-scrollbar{width:0;}
+  .msg{max-width:76%;padding:10px 13px;border-radius:16px;font-size:15px;line-height:1.5;word-break:break-word;}
+  .msg.mine{align-self:flex-end;background:var(--plum);color:#fff;border-bottom-right-radius:4px;}
+  .msg.theirs{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;}
+  .msg .t{font-size:9px;opacity:.5;margin-top:3px;display:block;}
+  .tip{align-self:center;font-size:10.5px;padding:4px 12px;border-radius:12px;text-align:center;max-width:90%;}
+  .tip.hit{background:#eaf5ea;border:1px solid #bcdcbc;color:var(--ok);}
+  .tip.miss{background:#fdf3f2;border:1px solid #f0c9c4;color:#b5544a;}
+  .tip.sys{background:#eef4ff;border:1px solid #cdddff;color:#3b6fe0;}
+  .cin{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;}
+  .cin input{flex:1;border:1.5px solid var(--line);border-radius:22px;padding:11px 15px;font-size:15px;font-family:inherit;background:var(--warm);}
+  .cin input:focus{outline:none;border-color:var(--plum);}
+  .snd{min-width:44px;height:44px;border-radius:50%;background:var(--plum);color:#fff;border:none;font-size:18px;cursor:pointer;}
+  /* sheet menu */
+  .sheet{position:fixed;left:0;right:0;bottom:0;background:#fff;border-radius:20px 20px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.15);padding:10px 16px 26px;transform:translateY(110%);transition:.25s;z-index:100;}
+  .sheet.show{transform:translateY(0);}
+  .sheet .grip{width:40px;height:4px;background:#ddd;border-radius:2px;margin:8px auto 14px;}
+  .sheet .item{padding:14px 8px;font-size:15px;border-bottom:1px solid #f2efe9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+  .sheet .item:last-child{border-bottom:none;}
+  .sheet .item .d{font-size:11px;color:var(--gray);}
+  .mask{position:fixed;inset:0;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.25s;z-index:99;}
+  .mask.show{opacity:1;pointer-events:auto;}
+  .badge{display:inline-flex;align-items:center;gap:4px;background:#f0ecf5;color:var(--plum);font-size:10px;font-weight:600;padding:3px 9px;border-radius:12px;}
+  .badge.mem{background:#fff3e0;color:#a5701a;}
+  .stat{display:flex;gap:10px;margin-top:14px;}
+  .stat .box{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px;text-align:center;}
+  .stat .box b{font-size:22px;color:var(--plum);display:block;}
+  .stat .box span{font-size:11px;color:var(--gray);}
+  .warnbox{background:#fff8e1;border:1px solid #f0d78a;border-radius:10px;padding:10px;font-size:11px;color:#8a6d2f;margin-top:10px;line-height:1.6;}
+</style>
+</head>
+<body>
+
+<!-- ========== 0 配置检测 / 首页 ========== -->
+<div class="screen active" id="s-home">
+  <div class="scroll pad">
+    <div style="height:30px"></div>
+    <div class="h1">未尽</div>
+    <div class="sb">陪你把没说完的话说完</div>
+    <div style="height:24px"></div>
+
+    <div id="cfg-missing" style="display:none;">
+      <div class="note"><b>还差最后一步:连接聊天服务</b><br>这个 app 需要一个免费的 Firebase 后端来同步你们两台手机的消息。请打开随附的《部署指引》,把你的 Firebase 配置粘贴进本文件顶部的 firebaseConfig,再重新打开即可。</div>
+      <div class="info">在没配置好之前,你仍可以点下面按钮体验<b>单机演示模式</b>(消息只存本机,不联网,用于先感受流程)。</div>
+      <button class="btn clay" onclick="startLocalDemo()">先体验单机演示</button>
+    </div>
+
+    <div id="cfg-ok" style="display:none;">
+      <div class="label">你的昵称</div>
+      <input class="input" id="my-name" placeholder="怎么称呼你">
+      <div class="label">你们的房间号(两人填一样的)</div>
+      <input class="input" id="room-id" placeholder="例如:xiaolu-2026(两人必须一致)">
+      <div class="info">两个人各自打开这个网页,填<b>同一个房间号</b>,就能实时聊天了。消息会自动保存,之后可以导出或切换成"回忆模式"。</div>
+      <button class="btn" onclick="enterRoom()">进入聊天</button>
+      <button class="btn ghost" onclick="startLocalDemo()">或:单机演示模式</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 1 聊天 ========== -->
+<div class="screen" id="s-chat">
+  <div class="bar">
+    <span class="back" onclick="leaveChat()">← 退出</span>
+    <div style="text-align:center;">
+      <div class="nm" id="chat-title">聊天</div>
+      <div class="sub2" id="chat-sub">实时同步中</div>
+    </div>
+    <span class="menu" onclick="openMenu()">⋯</span>
+  </div>
+  <div class="cbody" id="cbody"></div>
+  <div class="cin">
+    <input id="ci" placeholder="发消息…" onkeydown="if(event.key==='Enter')sendMsg()">
+    <button class="snd" onclick="sendMsg()">↑</button>
+  </div>
+</div>
+
+<!-- ========== 2 回忆模式 ========== -->
+<div class="screen" id="s-mem">
+  <div class="bar">
+    <span class="back" onclick="exitMem()">← 返回</span>
+    <div style="text-align:center;">
+      <div class="nm" id="mem-title">回忆模式</div>
+      <div class="sub2">用你们的真实记录 · 非真人</div>
+    </div>
+    <span style="width:30px"></span>
+  </div>
+  <div class="cbody" id="mbody"></div>
+  <div class="cin">
+    <input id="mi" placeholder="说点什么…" onkeydown="if(event.key==='Enter')memSend()">
+    <button class="snd" onclick="memSend()">↑</button>
+  </div>
+</div>
+
+<!-- ========== 菜单 sheet ========== -->
+<div class="mask" id="mask" onclick="closeMenu()"></div>
+<div class="sheet" id="sheet">
+  <div class="grip"></div>
+  <div class="item" onclick="showStats()"><span>📊 这段时间的记录</span><span class="d" id="msg-count">—</span></div>
+  <div class="item" onclick="enterMem()"><span>💭 切换成"回忆模式"</span><span class="d">用已攒的记录对话</span></div>
+  <div class="item" onclick="exportTxt()"><span>📄 导出为 txt</span><span class="d">纯文本</span></div>
+  <div class="item" onclick="exportJson()"><span>🗂 导出为 json</span><span class="d">带结构</span></div>
+  <div class="item" onclick="closeMenu()"><span style="color:#b5544a">关闭</span></div>
+</div>
+
+<!-- ========== Firebase(可选) ========== -->
+<script type="module">
+// ============================================================
+//  ↓↓↓  第一次使用:把你的 Firebase 配置粘到这里(见《部署指引》)  ↓↓↓
+//  没有配置也没关系,会自动进入"单机演示模式"。
+const firebaseConfig = {
+  // apiKey: "粘贴你的",
+  // authDomain: "粘贴你的",
+  // projectId: "粘贴你的",
+  // storageBucket: "粘贴你的",
+  // messagingSenderId: "粘贴你的",
+  // appId: "粘贴你的",
+  // databaseURL: "粘贴你的"   // 形如 https://xxx-default-rtdb.firebaseio.com
+};
+//  ↑↑↑  只需改上面这一段,其它都不用动  ↑↑↑
+// ============================================================
+
+window.__hasCfg = !!(firebaseConfig && firebaseConfig.databaseURL);
+
+if(window.__hasCfg){
+  try{
+    const { initializeApp } = await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js");
+    const { getDatabase, ref, push, onChildAdded, query, orderByChild } =
+      await import("https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js");
+    const app = initializeApp(firebaseConfig);
+    const db = getDatabase(app);
+    window.__fb = { db, ref, push, onChildAdded, query, orderByChild };
+  }catch(e){
+    console.error(e); window.__hasCfg=false;
+  }
+}
+window.dispatchEvent(new Event("fb-ready"));
+</script>
+
+<script>
+// ---------------- 状态 ----------------
+var ME="", ROOM="", MODE="", messages=[]; // messages: {who:'me'|'ta', name, text, ts}
+var THEIR_NAME="TA", listening=false;
+
+window.addEventListener("fb-ready", initHome);
+function initHome(){
+  if(window.__hasCfg){ document.getElementById('cfg-ok').style.display='block'; }
+  else { document.getElementById('cfg-missing').style.display='block'; }
+}
+// 兜底:模块脚本失败也能显示
+setTimeout(function(){
+  if(!document.getElementById('cfg-ok').style.display && !document.getElementById('cfg-missing').style.display){
+    document.getElementById('cfg-missing').style.display='block';
+  }
+},1500);
+
+// ---------------- 进入房间(联网) ----------------
+function enterRoom(){
+  ME=(document.getElementById('my-name').value||'我').trim();
+  ROOM=(document.getElementById('room-id').value||'').trim();
+  if(!ROOM){ alert('请填写房间号,两人要一致'); return; }
+  MODE='live';
+  messages=[];
+  document.getElementById('chat-title').textContent='房间:'+ROOM;
+  document.getElementById('chat-sub').textContent='实时同步中 · 你是'+ME;
+  show('s-chat');
+  document.getElementById('cbody').innerHTML='';
+  addTip('已进入房间「'+ROOM+'」。让对方也用同一个房间号进来,就能实时聊了。','sys');
+  subscribeFirebase();
+}
+function subscribeFirebase(){
+  if(listening) return; listening=true;
+  var fb=window.__fb;
+  var q=fb.query(fb.ref(fb.db,'rooms/'+ROOM+'/messages'), fb.orderByChild('ts'));
+  fb.onChildAdded(q, function(snap){
+    var m=snap.val(); if(!m) return;
+    var who = (m.name===ME)?'me':'ta';
+    if(who==='ta') THEIR_NAME=m.name||'TA';
+    messages.push({who:who, name:m.name, text:m.text, ts:m.ts});
+    renderMsg({who:who, text:m.text, ts:m.ts});
+    updateCount();
+  });
+}
+function sendMsg(){
+  var inp=document.getElementById('ci'), t=inp.value.trim(); if(!t) return;
+  inp.value='';
+  if(MODE==='live' && window.__hasCfg){
+    var fb=window.__fb;
+    fb.push(fb.ref(fb.db,'rooms/'+ROOM+'/messages'), {name:ME, text:t, ts:Date.now()});
+    // 不本地回显,靠 onChildAdded 统一回显(避免重复)
+  } else {
+    // 单机演示:本地回显,并随机造一条"对方"回复用于体验
+    messages.push({who:'me',name:ME,text:t,ts:Date.now()});
+    renderMsg({who:'me',text:t,ts:Date.now()}); updateCount();
+  }
+}
+function renderMsg(m){
+  var body=document.getElementById('cbody');
+  var d=document.createElement('div'); d.className='msg '+(m.who==='me'?'mine':'theirs');
+  d.textContent=m.text;
+  var tm=document.createElement('span'); tm.className='t'; tm.textContent=fmtTime(m.ts);
+  d.appendChild(tm);
+  body.appendChild(d); body.scrollTop=body.scrollHeight;
+}
+function addTip(t,kind){var body=document.getElementById('cbody');var d=document.createElement('div');d.className='tip '+(kind||'sys');d.textContent=t;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+function fmtTime(ts){if(!ts)return'';var d=new Date(ts);return (d.getMonth()+1)+'/'+d.getDate()+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');}
+function leaveChat(){ show('s-home'); }
+
+// ---------------- 单机演示 ----------------
+function startLocalDemo(){
+  ME='我'; ROOM='demo'; MODE='demo'; messages=[]; THEIR_NAME='TA';
+  document.getElementById('chat-title').textContent='单机演示';
+  document.getElementById('chat-sub').textContent='仅本机,不联网';
+  show('s-chat'); document.getElementById('cbody').innerHTML='';
+  addTip('这是单机演示:你发的消息只存在本机,用来先感受流程。真正联网需按《部署指引》配置 Firebase。','sys');
+  addTip('小技巧:演示模式下,你可以自己既当"我"又当"TA"——发几条后,点右上 ⋯ 里的"回忆模式"就能用这些话对话。','sys');
+}
+
+// ---------------- 菜单 ----------------
+function openMenu(){document.getElementById('sheet').classList.add('show');document.getElementById('mask').classList.add('show');updateCount();}
+function closeMenu(){document.getElementById('sheet').classList.remove('show');document.getElementById('mask').classList.remove('show');}
+function updateCount(){document.getElementById('msg-count').textContent=messages.length+' 条';}
+function showStats(){
+  var me=messages.filter(function(m){return m.who==='me';}).length;
+  var ta=messages.filter(function(m){return m.who==='ta';}).length;
+  var days = messages.length? Math.max(1, Math.round((Date.now()-messages[0].ts)/86400000)) : 0;
+  closeMenu();
+  alert('已攒下 '+messages.length+' 条消息\n你 '+me+' 条 / 对方 '+ta+' 条\n跨越约 '+days+' 天\n\n攒得越多,回忆模式越像 TA。');
+}
+
+// ---------------- 导出 ----------------
+function download(name, content, type){
+  var blob=new Blob([content],{type:type});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name; a.click();
+  setTimeout(function(){URL.revokeObjectURL(a.href);},500);
+}
+function exportTxt(){
+  closeMenu();
+  if(!messages.length){alert('还没有消息可导出');return;}
+  var lines=messages.map(function(m){ return (m.who==='me'?ME:(m.name||THEIR_NAME))+': '+m.text; });
+  download('weijin_chat_'+Date.now()+'.txt', lines.join('\n'), 'text/plain');
+}
+function exportJson(){
+  closeMenu();
+  if(!messages.length){alert('还没有消息可导出');return;}
+  download('weijin_chat_'+Date.now()+'.json', JSON.stringify(messages,null,2), 'application/json');
+}
+
+// ---------------- 回忆模式(检索式) ----------------
+var pairs=[], taLines=[], fbi=0;
+var fb_reply=['我一时不知道该怎么接…但我在听着呢。','这个我们好像没聊过,可你说,我都想听。','嗯…(想了想)再多说点?'];
+function buildPairs(){
+  pairs=[]; taLines=[];
+  for(var i=0;i<messages.length;i++){
+    if(messages[i].who==='ta'){
+      taLines.push(messages[i].text);
+      var q=(i>0 && messages[i-1].who==='me')?messages[i-1].text:'';
+      pairs.push({q:q,a:messages[i].text});
+    }
+  }
+}
+function enterMem(){
+  closeMenu();
+  buildPairs();
+  if(taLines.length<3){ alert('对方的消息还太少('+taLines.length+' 条),先多聊一会儿再来回忆吧。'); return; }
+  document.getElementById('mem-title').textContent=THEIR_NAME+'(回忆)';
+  show('s-mem'); document.getElementById('mbody').innerHTML='';
+  memTip('已载入你们 '+pairs.length+' 组对话。说点什么,我会用 TA 说过的话回你。','sys');
+  setTimeout(function(){memBubble(pairs[0]?pairs[0].a:taLines[0],'ta');},300);
+}
+function exitMem(){ show('s-chat'); }
+function clean(s){return (s||'').replace(/[\s,。,.!!??、~…"''：:;；()（）]/g,'');}
+function grams(s,n){s=clean(s);var g={};if(s.length<n){if(s)g[s]=1;return g;}for(var i=0;i<=s.length-n;i++)g[s.substr(i,n)]=1;return g;}
+function jac(ga,gb){var ka=Object.keys(ga),kb=Object.keys(gb);if(!ka.length||!kb.length)return 0;var n=0;ka.forEach(function(k){if(gb[k])n++;});return n/(ka.length+kb.length-n);}
+function sim(a,b){var b2=jac(grams(a,2),grams(b,2));var b1=jac(grams(a,1),grams(b,1));return 0.65*b2+0.35*b1;}
+function retrieve(input){var best=null,bs=0;pairs.forEach(function(p){if(!p.q)return;var s=sim(input,p.q);if(s>bs){bs=s;best=p;}});if(!best){taLines.forEach(function(t){var s=sim(input,t);if(s>bs){bs=s;best={q:'',a:t};}});}return{pair:best,score:bs};}
+function memBubble(t,who){var body=document.getElementById('mbody');var d=document.createElement('div');d.className='msg '+(who==='me'?'mine':'theirs');d.textContent=t;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+function memTip(t,kind){var body=document.getElementById('mbody');var d=document.createElement('div');d.className='tip '+(kind||'sys');d.textContent=t;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+function memSend(){
+  var inp=document.getElementById('mi'),t=inp.value.trim();if(!t)return;
+  memBubble(t,'me');inp.value='';
+  if(/不想活|自杀|活不下去|结束自己|轻生/.test(t)){
+    setTimeout(function(){memTip('⚠ 安全提醒(非检索结果)','sys');memBubble('我有点担心你。我只是基于记录的程序,接不住这些——但你值得被真正接住。如果难受,请联系信任的人或拨打心理援助热线。','ta');},400);
+    return;
+  }
+  var r=retrieve(t);
+  setTimeout(function(){
+    if(r.pair && r.score>=0.12){
+      var pct=Math.round(r.score*100);
+      if(r.pair.q) memTip('🔎 你曾说过"'+r.pair.q+'"(相近 '+pct+'%)→ TA 当时这样回','hit');
+      else memTip('📎 引用 TA 说过的话(相近 '+pct+'%)','hit');
+      memBubble(r.pair.a,'ta');
+    } else {
+      memBubble(fb_reply[fbi%fb_reply.length],'ta');fbi++;
+      memTip('⚠ 记录里没有相近的话 —— 纯检索的局限','miss');
+    }
+  },500);
+}
+
+// ---------------- 通用 ----------------
+function show(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
+</script>
+</body>
+</html>

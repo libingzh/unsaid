@@ -1,0 +1,23 @@
+<view class="wrap">
+  <view class="bar">
+    <text class="back" bindtap="goBack">← 返回</text>
+    <view class="ttl">
+      <view class="nm">{{ta}}(回忆)</view>
+      <view class="sub2">用真实记录 · 非真人</view>
+    </view>
+    <text style="width:56rpx"></text>
+  </view>
+
+  <scroll-view class="cbody" scroll-y scroll-into-view="{{scrollTo}}">
+    <block wx:for="{{msgs}}" wx:key="idx">
+      <view wx:if="{{item.type==='tip'}}" class="tip {{item.kind}}">{{item.text}}</view>
+      <view wx:else class="msg {{item.who==='me'?'mine':'theirs'}}"><text>{{item.text}}</text></view>
+    </block>
+    <view id="mbottom"></view>
+  </scroll-view>
+
+  <view class="cin">
+    <input class="ci" value="{{draft}}" placeholder="说点什么…" confirm-type="send" bindinput="onInput" bindconfirm="send"/>
+    <view class="snd" bindtap="send">↑</view>
+  </view>
+</view>

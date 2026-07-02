@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>未尽 · 检索式对话工具(个人版)</title>
+<style>
+  :root{--plum:#6B5B95;--plum-d:#574a7d;--clay:#E8A87C;--warm:#FAF8F5;--ink:#3A3A44;--gray:#8a8a8a;--line:#e8e3dc;--ok:#2e7d4f;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(160deg,#3a3550,#5a4f7d 60%,#b98a6e);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 14px;color:var(--ink);}
+  .title{color:#fff;text-align:center;margin-bottom:4px;}
+  .title .lg{font-family:"Songti SC","SimSun",serif;font-size:30px;letter-spacing:4px;font-weight:700;}
+  .title .sb{font-size:12px;opacity:.85;margin-top:4px;}
+  .privacy{color:#f3eef8;font-size:11px;opacity:.8;max-width:360px;text-align:center;margin:6px 0 14px;line-height:1.6;}
+  .phone{width:360px;max-width:96vw;background:var(--warm);border-radius:30px;box-shadow:0 22px 56px rgba(0,0,0,.4);overflow:hidden;border:8px solid #15131c;display:flex;flex-direction:column;height:720px;max-height:86vh;}
+  .screen{flex:1;overflow-y:auto;display:none;flex-direction:column;}
+  .screen.active{display:flex;}
+  .screen::-webkit-scrollbar{width:0;}
+  .pad{padding:20px;}
+  .h2{font-size:19px;font-weight:700;font-family:"Songti SC",serif;margin-bottom:6px;}
+  .sub{font-size:12px;color:var(--gray);line-height:1.6;}
+  .label{font-size:12px;color:var(--gray);margin:16px 0 6px;font-weight:600;}
+  .input{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px;font-size:14px;font-family:inherit;background:#fff;color:var(--ink);}
+  .input:focus{outline:none;border-color:var(--plum);}
+  .row2{display:flex;gap:10px;}
+  .row2>div{flex:1;}
+  .btn{background:var(--plum);color:#fff;border:none;border-radius:22px;padding:13px 18px;font-size:15px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;}
+  .btn:active{transform:scale(.98);background:var(--plum-d);}
+  .btn.ghost{background:transparent;color:var(--plum);border:1.5px solid var(--plum);}
+  .btn:disabled{opacity:.45;cursor:not-allowed;}
+  .drop{border:1.5px dashed var(--plum);border-radius:14px;padding:18px;text-align:center;background:#f6f4fa;cursor:pointer;margin-top:6px;}
+  .drop .ic{font-size:26px;}
+  .drop .tx{font-size:13px;color:var(--plum);font-weight:600;margin-top:6px;}
+  .drop .tx2{font-size:11px;color:var(--gray);margin-top:4px;}
+  .paste{width:100%;border:1.5px solid var(--line);border-radius:12px;padding:11px;font-size:13px;font-family:inherit;background:#fff;color:var(--ink);resize:none;margin-top:10px;}
+  .paste:focus{outline:none;border-color:var(--plum);}
+  .note{font-size:11px;color:#b5544a;background:#fdf3f2;border:1px solid #f0c9c4;border-radius:10px;padding:10px;margin-top:12px;line-height:1.6;}
+  .fmt{font-size:11px;color:var(--gray);background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:10px;line-height:1.7;}
+  .fmt code{background:#f0ecf5;padding:1px 5px;border-radius:4px;color:var(--plum);}
+  /* preview */
+  .pv{margin-top:12px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:none;}
+  .pv.show{display:block;}
+  .pv .st{font-size:12px;font-weight:700;color:var(--ok);margin-bottom:8px;}
+  .pv .warn{color:#b5544a;}
+  .pvrow{font-size:11.5px;padding:4px 0;border-bottom:1px dashed #eee;line-height:1.5;}
+  .pvrow .who{display:inline-block;min-width:30px;font-weight:700;}
+  .pvrow .who.me{color:#3b6fe0;}.pvrow .who.ta{color:var(--plum);}
+  .swap{font-size:12px;color:var(--plum);text-decoration:underline;cursor:pointer;margin-top:8px;display:inline-block;}
+  /* chat */
+  .chead{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line);background:#fff;}
+  .av{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--plum),var(--clay));}
+  .chead .nm{font-size:15px;font-weight:600;}
+  .badge{display:inline-flex;align-items:center;gap:4px;background:#f0ecf5;color:var(--plum);font-size:10px;font-weight:600;padding:3px 8px;border-radius:12px;}
+  .badge::before{content:"●";font-size:6px;}
+  .cbody{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:11px;background:var(--warm);}
+  .cbody::-webkit-scrollbar{width:0;}
+  .b{max-width:80%;padding:10px 13px;border-radius:15px;font-size:14px;line-height:1.5;}
+  .b.ta{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;}
+  .b.me{align-self:flex-end;background:var(--plum);color:#fff;border-bottom-right-radius:4px;}
+  .tip{align-self:center;font-size:10.5px;padding:4px 11px;border-radius:12px;}
+  .tip.hit{background:#eaf5ea;border:1px solid #bcdcbc;color:var(--ok);}
+  .tip.miss{background:#fdf3f2;border:1px solid #f0c9c4;color:#b5544a;}
+  .tip.sys{background:#eef4ff;border:1px solid #cdddff;color:#3b6fe0;}
+  .cin{display:flex;gap:8px;padding:11px 12px;border-top:1px solid var(--line);background:#fff;}
+  .cin input{flex:1;border:1.5px solid var(--line);border-radius:20px;padding:10px 14px;font-size:14px;font-family:inherit;background:var(--warm);}
+  .cin input:focus{outline:none;border-color:var(--plum);}
+  .snd{width:40px;height:40px;border-radius:50%;background:var(--plum);color:#fff;border:none;font-size:17px;cursor:pointer;}
+  .topbar{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;background:#fff;border-bottom:1px solid var(--line);}
+  .topbar a{font-size:12px;color:var(--plum);cursor:pointer;text-decoration:none;}
+</style>
+</head>
+<body>
+  <div class="title"><div class="lg">未尽</div><div class="sb">检索式对话工具 · 个人版</div></div>
+  <div class="privacy">🔒 完全本地运行:你的聊天记录只在本浏览器内解析,不上传任何服务器、不联网。关掉页面即清空。</div>
+
+  <div class="phone">
+    <!-- 导入页 -->
+    <div class="screen active" id="s1">
+      <div class="pad">
+        <div class="h2">导入你们的聊天记录</div>
+        <div class="sub">上传或粘贴聊天记录,工具会从历史里检索,用 TA 当年的真实回复来回应你。不调用任何大模型。</div>
+
+        <div class="label">① 上传 .txt 文件</div>
+        <div class="drop" id="drop" onclick="document.getElementById('file').click()">
+          <div class="ic">📁</div>
+          <div class="tx">点击选择,或把 txt 拖到这里</div>
+          <div class="tx2">微信/QQ 导出的聊天记录文本</div>
+        </div>
+        <input type="file" id="file" accept=".txt,.csv,text/plain" style="display:none">
+
+        <div class="label">② 或 直接粘贴</div>
+        <textarea class="paste" id="paste" rows="5" placeholder="把聊天记录粘贴到这里…"></textarea>
+
+        <div class="label">③ 谁是"我"、谁是"TA"(可选,留空会自动猜)</div>
+        <div class="row2">
+          <div><input class="input" id="me" placeholder="我的昵称"></div>
+          <div><input class="input" id="ta" placeholder="TA 的昵称"></div>
+        </div>
+
+        <div style="margin-top:14px;"><button class="btn" onclick="doParse()">解析并预览 →</button></div>
+
+        <div class="pv" id="pv"></div>
+        <div id="go-wrap" style="margin-top:12px;display:none;">
+          <button class="btn" onclick="startChat()">✓ 解析没问题,开始对话</button>
+        </div>
+
+        <div class="fmt">支持的常见格式(任一即可):<br>
+          · <code>我:在吗</code> / <code>对方:在的</code><br>
+          · <code>[2024-03-01 21:30] 阿哲: 在吗</code><br>
+          · 微信导出的"昵称+时间"换行格式<br>
+          解析后请在预览里确认"我/TA"分对了,没分对就点"对调"。
+        </div>
+        <div class="note">提示:仅用于你本人持有的聊天记录。这是验证用的检索式工具,只能复用历史里说过的话,聊到没记录的新话题会答不上来——这是它的正常局限。</div>
+      </div>
+    </div>
+
+    <!-- 对话页 -->
+    <div class="screen" id="s2">
+      <div class="topbar"><a onclick="back()">← 重新导入</a><span style="font-size:11px;color:#aaa" id="stat"></span></div>
+      <div class="chead">
+        <div class="av"></div>
+        <div><div class="nm" id="cn">TA</div><span class="badge">检索自真实记录 · 非真人</span></div>
+      </div>
+      <div class="cbody" id="cbody"></div>
+      <div class="cin"><input id="ci" placeholder="说点什么…" onkeydown="if(event.key==='Enter')send()"><button class="snd" onclick="send()">↑</button></div>
+    </div>
+  </div>
+
+<script>
+  var pairs=[], taLines=[], meName="", taName="", taDisplay="TA", seqCache=[];
+
+  // ---------- 解析 ----------
+  function parseChat(txt, meN, taN){
+    meN=(meN||'').trim(); taN=(taN||'').trim();
+    var rawLines=txt.split(/\r?\n/), seq=[], pendingWho=null;
+    function classify(name){
+      if(name==null) return null; name=name.trim(); if(!name) return null;
+      if(meN && name===meN) return 'me';
+      if(taN && name===taN) return 'ta';
+      if(/^(我|me|myself)$/i.test(name)) return 'me';
+      if(/^(ta|他|她|对方|对象)$/i.test(name)) return 'ta';
+      if(meN && !taN && name!==meN) return 'ta';
+      if(taN && !meN && name!==taN) return 'me';
+      return null;
+    }
+    var reTime=/\d{1,2}:\d{2}/;
+    for(var i=0;i<rawLines.length;i++){
+      var line=rawLines[i]; if(!line.trim()) continue; var done=false;
+      var mB=line.match(/^\s*\[[^\]]*\]\s*([^:：]{1,20}?)\s*[:：]\s*(.+)$/);
+      if(mB){ var w=classify(mB[1]); if(w){ seq.push({who:w,text:mB[2].trim()}); pendingWho=null; done=true; } }
+      if(!done){
+        var mH=line.match(/^\s*(.{1,24}?)\s+\d{4}[-\/]\d{1,2}[-\/]\d{1,2}[^:：]*$/);
+        if(mH && reTime.test(line)){ var wh=classify(mH[1]); if(wh!==null){ pendingWho=wh; done=true; } }
+      }
+      if(!done && pendingWho!==null){ seq.push({who:pendingWho,text:line.trim()}); pendingWho=null; done=true; }
+      if(!done){
+        var mI=line.match(/^\s*([^\s:：\[\]]{1,20})\s*[:：]\s*(.+)$/);
+        if(mI){ var wi=classify(mI[1]); if(wi!==null){ seq.push({who:wi,text:mI[2].trim()}); done=true; } }
+      }
+      if(!done && seq.length){ seq[seq.length-1].text += ' ' + line.trim(); }
+    }
+    return seq;
+  }
+  function buildPairs(seq){var p=[];for(var i=0;i<seq.length;i++){if(seq[i].who==='ta'){var q=(i>0&&seq[i-1].who==='me')?seq[i-1].text:'';p.push({q:q,a:seq[i].text});}}return p;}
+
+  // ---------- 文件上传 ----------
+  var fileText="";
+  document.getElementById('file').addEventListener('change',function(e){
+    var f=e.target.files[0]; if(!f) return;
+    var r=new FileReader();
+    r.onload=function(){ fileText=r.result; document.getElementById('paste').value = (r.result.length>3000? r.result.slice(0,3000)+'\n…(已载入'+r.result.length+'字)':r.result); document.querySelector('.drop .tx').textContent='✓ 已载入:'+f.name; };
+    r.readAsText(f,'UTF-8');
+  });
+  var drop=document.getElementById('drop');
+  ['dragover','dragenter'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.style.background='#ece6f5';});});
+  ['dragleave','drop'].forEach(function(ev){drop.addEventListener(ev,function(e){e.preventDefault();drop.style.background='#f6f4fa';});});
+  drop.addEventListener('drop',function(e){var f=e.dataTransfer.files[0];if(f){var r=new FileReader();r.onload=function(){fileText=r.result;document.querySelector('.drop .tx').textContent='✓ 已载入:'+f.name;};r.readAsText(f,'UTF-8');}});
+
+  // ---------- 解析 + 预览 ----------
+  function doParse(){
+    var paste=document.getElementById('paste').value.trim();
+    var txt = (fileText && paste.length<=3050) ? fileText : paste;
+    if(!txt){ alert('先上传 txt 或粘贴一段聊天记录'); return; }
+    meName=document.getElementById('me').value.trim();
+    taName=document.getElementById('ta').value.trim();
+    var seq=parseChat(txt, meName, taName);
+    seqCache=seq;
+    renderPreview(seq);
+  }
+  function renderPreview(seq){
+    var pv=document.getElementById('pv');
+    var meC=seq.filter(function(s){return s.who==='me';}).length;
+    var taC=seq.filter(function(s){return s.who==='ta';}).length;
+    pairs=buildPairs(seq); taLines=seq.filter(function(s){return s.who==='ta';}).map(function(s){return s.text;});
+    var html='';
+    if(seq.length===0){
+      html='<div class="st warn">⚠ 没解析出对话。请检查格式,或在上面填写"我/TA 的昵称"。</div>';
+      document.getElementById('go-wrap').style.display='none';
+    } else {
+      html='<div class="st">✓ 解析成功:共 '+seq.length+' 条(我 '+meC+' 条 / TA '+taC+' 条),可配对 '+pairs.length+' 组问答</div>';
+      html+='<div style="font-size:11px;color:#888;margin-bottom:6px;">预览前几条,确认"我/TA"分对了:</div>';
+      seq.slice(0,6).forEach(function(s){
+        html+='<div class="pvrow"><span class="who '+s.who+'">'+(s.who==='me'?'我':'TA')+'</span> '+escapeHtml(s.text)+'</div>';
+      });
+      html+='<span class="swap" onclick="swapRoles()">↔ 我和 TA 分反了?点这里对调</span>';
+      if(taC===0){ html+='<div class="st warn" style="margin-top:8px;">⚠ 没识别到 TA 的发言,请填写双方昵称后重试。</div>'; document.getElementById('go-wrap').style.display='none'; }
+      else { document.getElementById('go-wrap').style.display='block'; }
+    }
+    pv.innerHTML=html; pv.classList.add('show');
+  }
+  function swapRoles(){
+    seqCache.forEach(function(s){ s.who = s.who==='me'?'ta':'me'; });
+    var t=meName; meName=taName; taName=t;
+    renderPreview(seqCache);
+  }
+  function escapeHtml(s){return s.replace(/[&<>]/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+
+  // ---------- 对话 ----------
+  function startChat(){
+    taDisplay = taName || 'TA';
+    document.getElementById('cn').textContent=taDisplay;
+    document.getElementById('stat').textContent=pairs.length+' 组记忆';
+    document.getElementById('s1').classList.remove('active');
+    document.getElementById('s2').classList.add('active');
+    var body=document.getElementById('cbody'); body.innerHTML='';
+    addTip('已载入你们 '+pairs.length+' 组对话。说点什么,我会用 TA 说过的话回你。','sys');
+    var opener = pairs.length? pairs[0].a : (taLines[0]||'在的');
+    setTimeout(function(){addBubble(opener,'ta');},300);
+  }
+  function bigrams(s){s=(s||'').replace(/[\s,。,.!!??、~…"'']/g,'');var g={};if(s.length<=1){if(s)g[s]=1;return g;}for(var i=0;i<s.length-1;i++)g[s.substr(i,2)]=1;return g;}
+  function sim(a,b){var ga=bigrams(a),gb=bigrams(b),ka=Object.keys(ga),kb=Object.keys(gb);if(!ka.length||!kb.length)return 0;var n=0;ka.forEach(function(k){if(gb[k])n++;});return n/(ka.length+kb.length-n);}
+  function retrieve(input){var best=null,bs=0;pairs.forEach(function(p){if(!p.q)return;var s=sim(input,p.q);if(s>bs){bs=s;best=p;}});
+    // 若没有带问句的配对,退而匹配 TA 任意话
+    if(!best){ taLines.forEach(function(t){var s=sim(input,t);if(s>bs){bs=s;best={q:'',a:t};}}); }
+    return {pair:best,score:bs};}
+  var fb=['我一时不知道该怎么接…但我在听着呢。','这个我们好像没聊过,可你说,我都想听。','嗯…(沉默了一下)再多说点?'],fbi=0;
+
+  function addBubble(t,who){var body=document.getElementById('cbody');var d=document.createElement('div');d.className='b '+who;d.textContent=t;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+  function addTip(t,kind){var body=document.getElementById('cbody');var d=document.createElement('div');d.className='tip '+kind;d.textContent=t;body.appendChild(d);body.scrollTop=body.scrollHeight;}
+
+  function send(){
+    var inp=document.getElementById('ci'),t=inp.value.trim();if(!t)return;
+    addBubble(t,'me');inp.value='';
+    if(/不想活|自杀|活不下去|结束自己|不想活了/.test(t)){
+      setTimeout(function(){addTip('⚠ 这是工具的安全提醒(非检索结果)','sys');addBubble('我有点担心你。我只是基于记录的程序,接不住这些——但你值得被真正接住。如果难受,请联系信任的人,或拨打心理援助热线。','ta');},500);
+      return;
+    }
+    var res=retrieve(t);
+    setTimeout(function(){
+      if(res.pair && res.score>=0.10){
+        var pct=Math.round(res.score*100);
+        if(res.pair.q) addTip('🔎 匹配到你曾说过"'+res.pair.q+'"(相近 '+pct+'%)→ TA 当时这样回',' hit'.trim());
+        else addTip('📎 引用 TA 说过的话(相近 '+pct+'%)','hit');
+        addBubble(res.pair.a,'ta');
+      } else {
+        addBubble(fb[fbi%fb.length],'ta');fbi++;
+        addTip('⚠ 历史里没有相近的话 —— 这正是"纯检索"的局限',' miss'.trim());
+      }
+    },600);
+  }
+  function back(){document.getElementById('s2').classList.remove('active');document.getElementById('s1').classList.add('active');}
+</script>
+</body>
+</html>

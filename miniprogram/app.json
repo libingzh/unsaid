@@ -1,0 +1,15 @@
+{
+  "pages": [
+    "pages/home/home",
+    "pages/chat/chat",
+    "pages/memory/memory"
+  ],
+  "window": {
+    "navigationBarTitleText": "未尽",
+    "navigationBarBackgroundColor": "#6B5B95",
+    "navigationBarTextStyle": "white",
+    "backgroundColor": "#FAF8F5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

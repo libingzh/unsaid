@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>未尽 · 网页版</title>
+<style>
+  :root{--plum:#6B5B95;--plum-d:#574a7d;--clay:#E8A87C;--mist:#C8D5E0;--warm:#FAF8F5;--ink:#3A3A44;--gray:#8a8a8a;--line:#e8e3dc;--ok:#2e7d4f;}
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;background:linear-gradient(160deg,#3a3550,#5a4f7d 60%,#b98a6e);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:24px 14px;color:var(--ink);}
+  .tag{color:#f3eef8;font-size:12px;opacity:.85;text-align:center;max-width:360px;line-height:1.6;margin-bottom:12px;}
+  .tag b{color:#fff;}
+  /* phone */
+  .phone{width:360px;max-width:96vw;height:730px;max-height:88vh;background:var(--warm);border-radius:36px;box-shadow:0 22px 56px rgba(0,0,0,.4);overflow:hidden;border:9px solid #15131c;display:flex;flex-direction:column;position:relative;}
+  .notch{position:absolute;top:0;left:50%;transform:translateX(-50%);width:120px;height:22px;background:#15131c;border-radius:0 0 15px 15px;z-index:50;}
+  .screen{flex:1;display:none;flex-direction:column;overflow:hidden;}
+  .screen.active{display:flex;animation:fade .35s ease;}
+  @keyframes fade{from{opacity:0;transform:translateY(6px);}to{opacity:1;transform:none;}}
+  .scroll{overflow-y:auto;flex:1;}
+  .scroll::-webkit-scrollbar,.cbody::-webkit-scrollbar{width:0;}
+  .pad{padding:22px;}
+  /* welcome */
+  #s-home{background:linear-gradient(165deg,var(--plum) 0%,#8a6f9e 45%,var(--clay) 100%);color:#fff;}
+  #s-home .top{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:38px 30px;}
+  .moon{width:70px;height:70px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#f0d9c4);margin-bottom:24px;box-shadow:0 0 48px rgba(255,235,210,.6);}
+  .logo{font-family:"Songti SC","SimSun",serif;font-size:54px;font-weight:700;letter-spacing:6px;margin-bottom:8px;}
+  .logo-sub{font-size:14px;opacity:.92;}
+  #s-home .bottom{padding:24px;}
+  .consent{font-size:11px;opacity:.85;text-align:center;margin-top:12px;line-height:1.6;}
+  .fld{margin-top:14px;text-align:left;}
+  .fld label{font-size:12px;opacity:.9;display:block;margin-bottom:5px;}
+  .fld input{width:100%;border:none;border-radius:12px;padding:12px;font-size:15px;font-family:inherit;background:rgba(255,255,255,.92);color:var(--ink);}
+  .fld input:focus{outline:2px solid #fff;}
+  /* buttons */
+  .btn{background:var(--plum);color:#fff;border:none;border-radius:24px;padding:14px 18px;font-size:15px;font-weight:600;cursor:pointer;width:100%;font-family:inherit;margin-top:12px;}
+  .btn:active{transform:scale(.98);}
+  .btn.clay{background:var(--clay);}
+  .btn.ghost{background:transparent;color:#fff;border:1.5px solid rgba(255,255,255,.7);}
+  .btn.plum-ghost{background:transparent;color:var(--plum);border:1.5px solid var(--plum);}
+  /* chat header */
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;background:#fff;border-bottom:1px solid var(--line);}
+  .bar .nm{font-size:16px;font-weight:600;}
+  .bar .sub2{font-size:10px;color:var(--gray);}
+  .bar .back,.bar .menu{color:var(--plum);cursor:pointer;}
+  .bar .back{font-size:13px;}
+  .bar .menu{font-size:22px;padding:0 6px;}
+  .badge{display:inline-flex;align-items:center;gap:4px;background:#f0ecf5;color:var(--plum);font-size:10px;font-weight:600;padding:3px 9px;border-radius:12px;}
+  .badge::before{content:"●";font-size:6px;}
+  .badge.mem{background:#fff3e0;color:#a5701a;}
+  /* chat body */
+  .cbody{flex:1;overflow-y:auto;padding:16px 14px;display:flex;flex-direction:column;gap:10px;background:var(--warm);}
+  .msg{max-width:78%;padding:10px 13px;border-radius:16px;font-size:14.5px;line-height:1.5;word-break:break-word;position:relative;}
+  .msg.mine{align-self:flex-end;background:var(--plum);color:#fff;border-bottom-right-radius:4px;}
+  .msg.theirs{align-self:flex-start;background:#fff;border:1px solid var(--line);border-bottom-left-radius:4px;}
+  .msg .who{font-size:9px;opacity:.6;display:block;margin-bottom:2px;}
+  .tip{align-self:center;font-size:10.5px;padding:4px 12px;border-radius:12px;text-align:center;max-width:92%;line-height:1.5;}
+  .tip.hit{background:#eaf5ea;border:1px solid #bcdcbc;color:var(--ok);}
+  .tip.miss{background:#fdf3f2;border:1px solid #f0c9c4;color:#b5544a;}
+  .tip.sys{background:#eef4ff;border:1px solid #cdddff;color:#3b6fe0;}
+  /* identity switch (单人测试用) */
+  .idbar{display:flex;align-items:center;gap:8px;padding:8px 12px;background:#fbf6ee;border-top:1px solid var(--line);font-size:12px;color:var(--gray);}
+  .idbar .seg{display:flex;border:1.5px solid var(--plum);border-radius:16px;overflow:hidden;flex:1;}
+  .idbar .seg button{flex:1;border:none;background:#fff;color:var(--plum);padding:7px;font-size:12.5px;font-family:inherit;cursor:pointer;font-weight:600;}
+  .idbar .seg button.on{background:var(--plum);color:#fff;}
+  /* input */
+  .cin{display:flex;gap:8px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;}
+  .cin input{flex:1;border:1.5px solid var(--line);border-radius:22px;padding:11px 15px;font-size:15px;font-family:inherit;background:var(--warm);}
+  .cin input:focus{outline:none;border-color:var(--plum);}
+  .snd{min-width:44px;height:44px;border-radius:50%;background:var(--plum);color:#fff;border:none;font-size:18px;cursor:pointer;}
+  /* sheet */
+  .mask{position:absolute;inset:0;background:rgba(0,0,0,.3);opacity:0;pointer-events:none;transition:.25s;z-index:60;}
+  .mask.show{opacity:1;pointer-events:auto;}
+  .sheet{position:absolute;left:0;right:0;bottom:0;background:#fff;border-radius:18px 18px 0 0;transform:translateY(110%);transition:.25s;z-index:61;padding:8px 16px 22px;}
+  .sheet.show{transform:translateY(0);}
+  .sheet .grip{width:38px;height:4px;background:#ddd;border-radius:2px;margin:8px auto 12px;}
+  .sheet .item{padding:14px 6px;font-size:15px;border-bottom:1px solid #f2efe9;cursor:pointer;display:flex;justify-content:space-between;align-items:center;}
+  .sheet .item:last-child{border-bottom:none;}
+  .sheet .item .d{font-size:11px;color:var(--gray);}
+  /* memory head */
+  #s-mem{}
+  .avatar{width:38px;height:38px;border-radius:50%;background:linear-gradient(135deg,var(--plum),var(--clay));}
+</style>
+</head>
+<body>
+  <div class="tag"><b>未尽 · 网页版(单人测试)</b>　用底部"以谁的身份说话"切换,一个人就能把双方对话都打出来,攒够后进"回忆模式"。</div>
+
+  <div class="phone">
+    <div class="notch"></div>
+
+    <!-- 首页 -->
+    <div class="screen active" id="s-home">
+      <div class="top">
+        <div class="moon"></div>
+        <div class="logo">未尽</div>
+        <div class="logo-sub">陪你把没说完的话说完</div>
+        <div class="fld"><label>你的昵称</label><input id="me-name" placeholder="例如:小鹿"></div>
+        <div class="fld"><label>TA 的昵称</label><input id="ta-name" placeholder="例如:阿哲"></div>
+      </div>
+      <div class="bottom">
+        <button class="btn clay" onclick="startChat()">开始(单人测试)</button>
+        <div class="consent">这是本地单人测试:两个人的话都由你来打,用来先跑通流程与"回忆模式"。<br>联网双人版部署后,两台设备各填同一房间号即可实时聊天。</div>
+      </div>
+    </div>
+
+    <!-- 聊天 -->
+    <div class="screen" id="s-chat">
+      <div class="bar">
+        <span class="back" onclick="go('s-home')">← 退出</span>
+        <div style="text-align:center;"><div class="nm">你们的对话</div><div class="sub2" id="c-sub">单人测试中</div></div>
+        <span class="menu" onclick="openMenu()">⋯</span>
+      </div>
+      <div class="cbody" id="cbody"></div>
+      <div class="idbar">
+        <span>以谁的身份说:</span>
+        <div class="seg">
+          <button id="seg-me" class="on" onclick="setSpeaker('me')">我</button>
+          <button id="seg-ta" onclick="setSpeaker('ta')">TA</button>
+        </div>
+      </div>
+      <div class="cin">
+        <input id="ci" placeholder="发消息…" onkeydown="if(event.key==='Enter')sendMsg()">
+        <button class="snd" onclick="sendMsg()">↑</button>
+      </div>
+    </div>
+
+    <!-- 回忆模式 -->
+    <div class="screen" id="s-mem">
+      <div class="bar">
+        <span class="back" onclick="go('s-chat')">← 返回</span>
+        <div style="text-align:center;"><div class="nm" id="mem-title">回忆</div><div class="sub2">用真实记录 · 非真人</div></div>
+        <span style="width:28px"></span>
+      </div>
+      <div class="cbody" id="mbody"></div>
+      <div class="cin">
+        <input id="mi" placeholder="说点什么…" onkeydown="if(event.key==='Enter')memSend()">
+        <button class="snd" onclick="memSend()">↑</button>
+      </div>
+    </div>
+
+    <!-- 菜单 -->
+    <div class="mask" id="mask" onclick="closeMenu()"></div>
+    <div class="sheet" id="sheet">
+      <div class="grip"></div>
+      <div class="item" onclick="showStats()"><span>📊 这段时间的记录</span><span class="d" id="cnt">—</span></div>
+      <div class="item" onclick="enterMem()"><span>💭 切换成"回忆模式"</span><span class="d">用已攒记录对话</span></div>
+      <div class="item" onclick="exportTxt()"><span>📄 导出为 txt</span><span class="d">纯文本</span></div>
+      <div class="item" onclick="exportJson()"><span>🗂 导出为 json</span><span class="d">带结构</span></div>
+      <div class="item" onclick="clearAll()"><span style="color:#b5544a">🗑 清空记录</span><span class="d">重新开始</span></div>
+      <div class="item" onclick="closeMenu()"><span style="color:var(--gray)">关闭</span></div>
+    </div>
+  </div>
+
+<script>
+/* ============================================================
+   未尽 · 网页版(单人测试前端)
+   - 单人模式:用"以谁的身份说话"切换,一个人扮演双方
+   - 消息存 localStorage,刷新不丢
+   - 支持导出 txt/json、检索式"回忆模式"
+   - 预留 sendToServer():联网时替换为 Firebase 推送即可
+   ============================================================ */
+var ME="我", TA="TA", SPEAKER="me";
+var messages = load(); // {who:'me'|'ta', text, ts}
+
+function load(){ try{ return JSON.parse(localStorage.getItem("weijin_msgs")||"[]"); }catch(e){ return []; } }
+function save(){ try{ localStorage.setItem("weijin_msgs", JSON.stringify(messages)); }catch(e){} }
+
+function startChat(){
+  ME=(document.getElementById('me-name').value||'我').trim();
+  TA=(document.getElementById('ta-name').value||'TA').trim();
+  document.getElementById('c-sub').textContent='你='+ME+' · TA='+TA;
+  document.getElementById('seg-me').textContent=ME;
+  document.getElementById('seg-ta').textContent=TA;
+  go('s-chat');
+  renderAll();
+  if(messages.length===0){
+    addTip('单人测试:用下面的"我 / '+TA+'"切换身份,把两个人的话都打出来。','sys');
+    addTip('攒够几轮后,点右上 ⋯ →"回忆模式",就能用这些真实对话和"过去的 '+TA+'"聊。','sys');
+  }
+}
+function setSpeaker(w){
+  SPEAKER=w;
+  document.getElementById('seg-me').classList.toggle('on', w==='me');
+  document.getElementById('seg-ta').classList.toggle('on', w==='ta');
+  document.getElementById('ci').placeholder = (w==='me'? ('以 '+ME+' 的身份发…') : ('以 '+TA+' 的身份发…'));
+}
+function sendMsg(){
+  var inp=document.getElementById('ci'), t=inp.value.trim(); if(!t) return;
+  inp.value='';
+  var m={who:SPEAKER, text:t, ts:Date.now()};
+  messages.push(m); save();
+  renderMsg(m); updateCnt();
+  // 联网时:sendToServer(m)
+}
+// 预留:联网推送接口(部署 Firebase 后在此实现)
+function sendToServer(m){ /* TODO: firebase push */ }
+
+function renderAll(){ var b=document.getElementById('cbody'); b.innerHTML=''; messages.forEach(renderMsg); }
+function renderMsg(m){
+  var b=document.getElementById('cbody');
+  var d=document.createElement('div'); d.className='msg '+(m.who==='me'?'mine':'theirs');
+  var w=document.createElement('span'); w.className='who'; w.textContent=(m.who==='me'?ME:TA);
+  d.appendChild(w); d.appendChild(document.createTextNode(m.text));
+  b.appendChild(d); b.scrollTop=b.scrollHeight;
+}
+function addTip(t,k){var b=document.getElementById('cbody');var d=document.createElement('div');d.className='tip '+(k||'sys');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
+function updateCnt(){document.getElementById('cnt').textContent=messages.length+' 条';}
+
+/* 菜单 */
+function openMenu(){document.getElementById('sheet').classList.add('show');document.getElementById('mask').classList.add('show');updateCnt();}
+function closeMenu(){document.getElementById('sheet').classList.remove('show');document.getElementById('mask').classList.remove('show');}
+function showStats(){
+  var me=messages.filter(function(m){return m.who==='me';}).length;
+  var ta=messages.filter(function(m){return m.who==='ta';}).length;
+  closeMenu();
+  alert('已攒下 '+messages.length+' 条\n'+ME+' '+me+' 条 / '+TA+' '+ta+' 条\n\n'+TA+' 的话越多,回忆模式越像 TA(需 ≥3 条)。');
+}
+function clearAll(){ if(confirm('清空所有记录?不可恢复。')){ messages=[]; save(); renderAll(); updateCnt(); closeMenu(); } }
+
+/* 导出 */
+function download(name,content,type){var b=new Blob([content],{type:type});var a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();setTimeout(function(){URL.revokeObjectURL(a.href);},500);}
+function exportTxt(){closeMenu();if(!messages.length){alert('还没有消息');return;}var s=messages.map(function(m){return (m.who==='me'?ME:TA)+': '+m.text;}).join('\n');download('weijin_'+Date.now()+'.txt',s,'text/plain');}
+function exportJson(){closeMenu();if(!messages.length){alert('还没有消息');return;}download('weijin_'+Date.now()+'.json',JSON.stringify(messages,null,2),'application/json');}
+
+/* 回忆模式(检索式) */
+var pairs=[], taLines=[], fbi=0, fb_reply=['我一时不知道该怎么接…但我在听着呢。','这个我们好像没聊过,可你说,我都想听。','嗯…(想了想)再多说点?'];
+function buildPairs(){pairs=[];taLines=[];for(var i=0;i<messages.length;i++){if(messages[i].who==='ta'){taLines.push(messages[i].text);var q=(i>0&&messages[i-1].who==='me')?messages[i-1].text:'';pairs.push({q:q,a:messages[i].text});}}}
+function enterMem(){
+  closeMenu(); buildPairs();
+  if(taLines.length<3){ alert(TA+' 的消息还太少('+taLines.length+' 条),先多聊几句再来。'); return; }
+  document.getElementById('mem-title').textContent=TA+'(回忆)';
+  go('s-mem'); document.getElementById('mbody').innerHTML='';
+  memTip('已载入你们 '+pairs.length+' 组对话。说点什么,我会用 '+TA+' 说过的话回你。','sys');
+  setTimeout(function(){memBubble(pairs[0]?pairs[0].a:taLines[0],'ta');},300);
+}
+function clean(s){return (s||'').replace(/[\s,。,.!!??、~…"''：:;；()（）]/g,'');}
+function grams(s,n){s=clean(s);var g={};if(s.length<n){if(s)g[s]=1;return g;}for(var i=0;i<=s.length-n;i++)g[s.substr(i,n)]=1;return g;}
+function jac(ga,gb){var ka=Object.keys(ga),kb=Object.keys(gb);if(!ka.length||!kb.length)return 0;var n=0;ka.forEach(function(k){if(gb[k])n++;});return n/(ka.length+kb.length-n);}
+function sim(a,b){return 0.65*jac(grams(a,2),grams(b,2))+0.35*jac(grams(a,1),grams(b,1));}
+function retrieve(input){var best=null,bs=0;pairs.forEach(function(p){if(!p.q)return;var s=sim(input,p.q);if(s>bs){bs=s;best=p;}});if(!best){taLines.forEach(function(t){var s=sim(input,t);if(s>bs){bs=s;best={q:'',a:t};}});}return{pair:best,score:bs};}
+function memBubble(t,w){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='msg '+(w==='me'?'mine':'theirs');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
+function memTip(t,k){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='tip '+(k||'sys');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
+function memSend(){
+  var inp=document.getElementById('mi'),t=inp.value.trim();if(!t)return;
+  memBubble(t,'me');inp.value='';
+  if(/不想活|自杀|活不下去|结束自己|轻生/.test(t)){
+    setTimeout(function(){memTip('⚠ 安全提醒(非检索结果)','sys');memBubble('我有点担心你。我只是基于记录的程序,接不住这些——但你值得被真正接住。如果难受,请联系信任的人或拨打心理援助热线。','ta');},400);
+    return;
+  }
+  var r=retrieve(t);
+  setTimeout(function(){
+    if(r.pair && r.score>=0.12){
+      var pct=Math.round(r.score*100);
+      if(r.pair.q) memTip('🔎 你曾说过"'+r.pair.q+'"(相近 '+pct+'%)→ '+TA+' 当时这样回','hit');
+      else memTip('📎 引用 '+TA+' 说过的话(相近 '+pct+'%)','hit');
+      memBubble(r.pair.a,'ta');
+    } else { memBubble(fb_reply[fbi%fb_reply.length],'ta'); fbi++; memTip('⚠ 记录里没有相近的话 —— 纯检索的局限','miss'); }
+  },500);
+}
+
+function go(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
+</script>
+</body>
+</html>

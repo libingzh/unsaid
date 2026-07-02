@@ -1,0 +1,49 @@
+<view class="wrap">
+  <!-- 顶栏 -->
+  <view class="bar">
+    <text class="back" bindtap="goHome">← 退出</text>
+    <view class="ttl">
+      <view class="nm">你们的对话</view>
+      <view class="sub2">你={{me}} · TA={{ta}}</view>
+    </view>
+    <text class="menu" bindtap="openMenu">⋯</text>
+  </view>
+
+  <!-- 消息列表 -->
+  <scroll-view class="cbody" scroll-y scroll-into-view="{{scrollTo}}">
+    <block wx:for="{{msgs}}" wx:key="idx">
+      <view wx:if="{{item.type==='tip'}}" class="tip {{item.kind}}">{{item.text}}</view>
+      <view wx:else class="msg {{item.who==='me'?'mine':'theirs'}}">
+        <text class="who">{{item.who==='me'?me:ta}}</text>
+        <text>{{item.text}}</text>
+      </view>
+    </block>
+    <view id="bottom-anchor"></view>
+  </scroll-view>
+
+  <!-- 身份切换 -->
+  <view class="idbar">
+    <text class="idlb">以谁的身份说:</text>
+    <view class="seg">
+      <view class="segbtn {{speaker==='me'?'on':''}}" bindtap="setMe">{{me}}</view>
+      <view class="segbtn {{speaker==='ta'?'on':''}}" bindtap="setTa">{{ta}}</view>
+    </view>
+  </view>
+
+  <!-- 输入 -->
+  <view class="cin">
+    <input class="ci" value="{{draft}}" placeholder="{{ph}}" bindinput="onInput" confirm-type="send" bindconfirm="send"/>
+    <view class="snd" bindtap="send">↑</view>
+  </view>
+
+  <!-- 菜单 -->
+  <view class="mask {{menu?'show':''}}" bindtap="closeMenu"></view>
+  <view class="sheet {{menu?'show':''}}">
+    <view class="grip"></view>
+    <view class="item" bindtap="showStats"><text>📊 这段时间的记录</text><text class="d">{{msgCount}} 条</text></view>
+    <view class="item" bindtap="enterMem"><text>💭 切换成"回忆模式"</text><text class="d">用已攒记录对话</text></view>
+    <view class="item" bindtap="exportText"><text>📄 导出文本</text><text class="d">复制到剪贴板</text></view>
+    <view class="item" bindtap="clearAll"><text style="color:#b5544a">🗑 清空记录</text><text class="d">重新开始</text></view>
+    <view class="item" bindtap="closeMenu"><text style="color:#8a8a8a">关闭</text></view>
+  </view>
+</view>

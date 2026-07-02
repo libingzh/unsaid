@@ -1,0 +1,21 @@
+<view class="home">
+  <view class="top">
+    <view class="moon"></view>
+    <view class="logo">未尽</view>
+    <view class="logo-sub">陪你把没说完的话说完</view>
+
+    <view class="fld">
+      <text class="lb">你的昵称</text>
+      <input class="ipt" placeholder="例如:小鹿" value="{{me}}" bindinput="onMe"/>
+    </view>
+    <view class="fld">
+      <text class="lb">TA 的昵称</text>
+      <input class="ipt" placeholder="例如:阿哲" value="{{ta}}" bindinput="onTa"/>
+    </view>
+  </view>
+
+  <view class="bottom">
+    <button class="btn clay" bindtap="start">开始(单人测试)</button>
+    <view class="consent">单人测试:两个人的话都由你来打,先跑通流程与"回忆模式"。联网双人版部署后,两台设备各填同一房间号即可实时聊天。</view>
+  </view>
+</view>

@@ -1,0 +1,26 @@
+/* 未尽 · 全局样式(暮色温柔) */
+page {
+  --plum: #6B5B95;
+  --clay: #E8A87C;
+  --warm: #FAF8F5;
+  --ink: #3A3A44;
+  --gray: #8a8a8a;
+  --line: #e8e3dc;
+  background: var(--warm);
+  font-family: -apple-system, "PingFang SC", sans-serif;
+  color: var(--ink);
+}
+.btn {
+  background: #6B5B95; color: #fff; border: none;
+  border-radius: 48rpx; padding: 26rpx; font-size: 32rpx;
+  font-weight: 600; margin-top: 24rpx;
+}
+.btn.clay { background: #E8A87C; }
+.btn::after { border: none; }
+.tip {
+  align-self: center; font-size: 22rpx; padding: 8rpx 22rpx;
+  border-radius: 24rpx; text-align: center; margin: 6rpx 0; line-height: 1.5;
+}
+.tip.sys { background: #eef4ff; border: 1rpx solid #cdddff; color: #3b6fe0; }
+.tip.hit { background: #eaf5ea; border: 1rpx solid #bcdcbc; color: #2e7d4f; }
+.tip.miss { background: #fdf3f2; border: 1rpx solid #f0c9c4; color: #b5544a; }

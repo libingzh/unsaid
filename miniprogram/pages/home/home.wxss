@@ -1,0 +1,14 @@
+.home {
+  min-height: 100vh; display: flex; flex-direction: column;
+  background: linear-gradient(165deg, #6B5B95 0%, #8a6f9e 45%, #E8A87C 100%);
+  color: #fff;
+}
+.top { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 60rpx; }
+.moon { width: 140rpx; height: 140rpx; border-radius: 50%; background: radial-gradient(circle at 35% 35%, #fff, #f0d9c4); margin-bottom: 48rpx; box-shadow: 0 0 90rpx rgba(255,235,210,.6); }
+.logo { font-size: 108rpx; font-weight: 700; letter-spacing: 12rpx; }
+.logo-sub { font-size: 28rpx; opacity: .92; margin-top: 12rpx; margin-bottom: 20rpx; }
+.fld { width: 100%; margin-top: 26rpx; }
+.lb { font-size: 24rpx; opacity: .9; display: block; margin-bottom: 10rpx; }
+.ipt { background: rgba(255,255,255,.92); color: #3A3A44; border-radius: 20rpx; padding: 24rpx; font-size: 30rpx; }
+.bottom { padding: 48rpx; }
+.consent { font-size: 22rpx; opacity: .85; text-align: center; margin-top: 22rpx; line-height: 1.6; }
