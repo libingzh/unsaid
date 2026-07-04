@@ -1,0 +1,116 @@
+// Unsaid（未尽）联网后端
+// 静态托管前端 + WebSocket 实时聊天 + SQLite 存储 + 数据导出接口
+const express = require('express');
+const http = require('http');
+const path = require('path');
+const { WebSocketServer } = require('ws');
+const db = require('./db');
+
+const PORT = process.env.PORT || 3000;
+// 导出接口密钥,防止别人随便下载聊天记录。部署时改成你自己的。
+const EXPORT_KEY = process.env.EXPORT_KEY || 'change-me-please';
+
+const app = express();
+const server = http.createServer(app);
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+// 数据导出接口(拿回本地做迭代)
+// json:  /export?key=密钥&format=json[&room=房间号]
+// txt:   /export?key=密钥&format=txt&room=房间号
+app.get('/export', (req, res) => {
+  if (req.query.key !== EXPORT_KEY) return res.status(403).send('forbidden: 密钥不对');
+  const room = req.query.room || '';
+  const rows = db.exportAll(room || undefined);
+  const format = req.query.format || 'json';
+
+  // txt:带时间戳的可读文本(存档用)
+  if (format === 'txt') {
+    const lines = rows.map(r => `[${new Date(r.ts).toLocaleString()}] ${r.sender}: ${r.text}`);
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="unsaid_export.txt"');
+    return res.send(lines.join('\n'));
+  }
+
+  // chat:无时间戳的"发送者: 内容",可直接粘进检索工具/回忆模式
+  // 可选 ?me=昵称 把该发送者标为"我",其余标为"对方",便于检索工具区分角色
+  if (format === 'chat') {
+    const me = (req.query.me || '').trim();
+    const lines = rows.map(r => {
+      const role = me ? (r.sender === me ? '我' : '对方') : r.sender;
+      return `${role}: ${r.text}`;
+    });
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Content-Disposition', 'attachment; filename="unsaid_chat.txt"');
+    return res.send(lines.join('\n'));
+  }
+
+  res.setHeader('Content-Type', 'application/json; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="unsaid_export.json"');
+  res.send(JSON.stringify(rows, null, 2));
+});
+
+app.get('/health', (req, res) => res.json({ ok: true, time: Date.now() }));
+
+// WebSocket 实时聊天
+const wss = new WebSocketServer({ server });
+const clients = new Map(); // ws -> { room, name }
+
+function broadcast(room, payload) {
+  const data = JSON.stringify(payload);
+  for (const [ws, meta] of clients) {
+    if (meta.room === room && ws.readyState === ws.OPEN) ws.send(data);
+  }
+}
+
+wss.on('connection', (ws) => {
+  clients.set(ws, { room: null, name: null });
+  ws.on('message', (raw) => {
+    let msg;
+    try { msg = JSON.parse(raw.toString()); } catch (e) { return; }
+    if (msg.type === 'join') {
+      const room = String(msg.room || '').trim();
+      const pw = String(msg.pw || '');
+      // 校验房间密码(首次进入即设定密码)
+      const chk = db.checkRoom(room, pw);
+      if (!chk.ok) {
+        ws.send(JSON.stringify({ type: 'join_denied', reason: chk.reason }));
+        return;
+      }
+      const meta = {
+        room: room,
+        name: String(msg.name || '匿名'),
+        avatar: String(msg.avatar || '💬').slice(0, 8),
+        uid: String(msg.uid || '').slice(0, 64)
+      };
+      clients.set(ws, meta);
+      ws.send(JSON.stringify({ type: 'join_ok', created: !!chk.created }));
+      const history = db.getHistory(meta.room);
+      ws.send(JSON.stringify({ type: 'history', messages: history }));
+      // 把房间内所有在线成员(含刚进来的自己)的头像发给新来的人
+      const members = [];
+      for (const [, m] of clients) {
+        if (m.room === meta.room && m.uid) members.push({ uid: m.uid, name: m.name, avatar: m.avatar });
+      }
+      ws.send(JSON.stringify({ type: 'members', members }));
+      // 通知房间里其他人:我来了,这是我的头像
+      broadcast(meta.room, { type: 'presence', uid: meta.uid, name: meta.name, avatar: meta.avatar });
+      return;
+    }
+    if (msg.type === 'msg') {
+      const meta = clients.get(ws);
+      if (!meta || !meta.room) return;
+      const text = String(msg.text || '').slice(0, 4000);
+      if (!text.trim()) return;
+      const saved = db.addMessage(meta.room, meta.name, text, meta.avatar, meta.uid);
+      broadcast(meta.room, { type: 'msg', id: saved.id, sender: saved.sender, text: saved.text, ts: saved.ts, avatar: saved.avatar, uid: saved.uid });
+    }
+  });
+  ws.on('close', () => clients.delete(ws));
+  ws.on('error', () => clients.delete(ws));
+});
+
+server.listen(PORT, () => {
+  console.log(`Unsaid server running on port ${PORT}`);
+  console.log(`导出地址示例: http://localhost:${PORT}/export?key=${EXPORT_KEY}&format=json`);
+});
