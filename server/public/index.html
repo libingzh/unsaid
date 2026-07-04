@@ -155,7 +155,9 @@ document.getElementById('ava-row').addEventListener('click', function(e){
   var el=e.target.closest('.ava'); if(!el) return;
   if(el.id==='ava-upload'){ document.getElementById('ava-file').click(); return; }
   this.querySelectorAll('.ava').forEach(function(a){a.classList.remove('sel');});
-  el.classList.add('sel'); MY_AVA=el.getAttribute('data-a');
+  // 清掉可能残留在＋按钮上的旧照片
+  var up=document.getElementById('ava-upload'); if(up){ up.classList.remove('img'); up.style.backgroundImage=''; up.textContent='＋'; }
+  el.classList.add('sel'); MY_AVA=el.getAttribute('data-a'); saveAvatarPref();
 });
 // 上传照片当头像:压缩成 96px 方形 jpeg,base64 存储
 document.getElementById('ava-file').addEventListener('change', function(e){
@@ -170,7 +172,7 @@ document.getElementById('ava-file').addEventListener('change', function(e){
       var side=Math.min(img.width,img.height), sx=(img.width-side)/2, sy=(img.height-side)/2;
       ctx.drawImage(img, sx, sy, side, side, 0, 0, S, S);
       var data=cv.toDataURL('image/jpeg', 0.8);
-      MY_AVA=data;
+      MY_AVA=data; saveAvatarPref();
       // 在上传按钮位置显示预览并选中
       var up=document.getElementById('ava-upload');
       document.querySelectorAll('#ava-row .ava').forEach(function(a){a.classList.remove('sel');});
@@ -184,9 +186,28 @@ document.getElementById('ava-file').addEventListener('change', function(e){
 // 登录信息本地持久化(刷新自动进入)
 function saveSession(){
   try{ localStorage.setItem('unsaid_session', JSON.stringify({me:ME,room:ROOM,pw:PW,ava:MY_AVA})); }catch(e){}
+  saveAvatarPref();
 }
-function clearSession(){ try{ localStorage.removeItem('unsaid_session'); }catch(e){} }
+function clearSession(){ try{ localStorage.removeItem('unsaid_session'); }catch(e){} } // 注意:不删头像偏好
 function loadSession(){ try{ return JSON.parse(localStorage.getItem('unsaid_session')||'null'); }catch(e){ return null; } }
+// 头像单独持久化,退出登录后依然记住,首页自动回显;用户可随时改
+function saveAvatarPref(){ try{ localStorage.setItem('unsaid_avatar', MY_AVA); }catch(e){} }
+function loadAvatarPref(){ try{ return localStorage.getItem('unsaid_avatar')||''; }catch(e){ return ''; } }
+// 把当前 MY_AVA 反映到首页选择器:emoji 高亮对应项;上传图则显示在＋按钮上
+function restoreAvatarUI(){
+  var row=document.getElementById('ava-row'); if(!row) return;
+  row.querySelectorAll('.ava').forEach(function(a){a.classList.remove('sel');});
+  var up=document.getElementById('ava-upload');
+  if(MY_AVA && MY_AVA.indexOf('data:')===0){
+    if(up){ applyAva(up, MY_AVA); up.classList.add('sel'); }   // 上传的照片
+  } else {
+    // emoji:找到匹配项高亮;找不到就默认第一个
+    var matched=null;
+    row.querySelectorAll('.ava').forEach(function(a){ if(a.getAttribute('data-a')===MY_AVA) matched=a; });
+    if(matched){ matched.classList.add('sel'); }
+    if(up){ up.classList.remove('img'); up.style.backgroundImage=''; up.textContent='＋'; }
+  }
+}
 
 var PW="";
 function enter(){
@@ -386,6 +407,13 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(function(s)
 // 绑定回车发送(带输入法保护),替代原来的 inline onkeydown
 bindEnter('ci', send);
 bindEnter('mi', memSend);
+
+// 先恢复头像偏好(即使不自动登录、退出后回首页,头像也保持上次选择)
+(function initAvatar(){
+  var a=loadAvatarPref();
+  if(a){ MY_AVA=a; }
+  restoreAvatarUI();
+})();
 
 // 自动登录:本机存过会话就直接进聊天,不用重填
 (function autoLogin(){
