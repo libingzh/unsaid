@@ -108,13 +108,8 @@ wss.on('connection', (ws) => {
         ws.send(JSON.stringify({ type: 'join_denied', reason: chk.reason }));
         return;
       }
-      // 身份 = 房间 + 名称。同一房间内名称必须唯一:若已有在线成员用了同名,拒绝。
-      for (const [, m] of clients) {
-        if (m.room === room && m.name === name) {
-          ws.send(JSON.stringify({ type: 'join_denied', reason: 'name_taken' }));
-          return;
-        }
-      }
+      // 身份 = 房间 + 名称。同名即同一个人(同一 uid),允许多设备(电脑+手机)同时在线。
+      // 不再因同名拒绝,以支持同一个人跨设备登录。
       const meta = {
         room: room,
         name: name,

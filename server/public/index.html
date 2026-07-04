@@ -119,7 +119,7 @@
     </div>
     <div class="screen" id="s-chat">
       <div class="bar">
-        <span class="back" onclick="location.reload()">← 退出</span>
+        <span class="back" onclick="logout()">← 退出</span>
         <div style="text-align:center;"><div class="nm" id="c-title">房间</div><div class="sub2"><span class="dot" id="conn-dot"></span> <span id="conn-txt">连接中…</span></div></div>
         <span class="menu" onclick="openMenu()">⋯</span>
       </div>
@@ -228,19 +228,25 @@ function startSession(){
   connect();
 }
 // 退出登录 / 换房间
+var manualQuit=false;   // 主动退出标记,避免自动重连把人拽回房间
 function logout(){
+  manualQuit=true;
   clearSession();
   try{ if(ws) ws.close(); }catch(e){}
   ws=null; messages=[]; avatarMap={}; peers={};
   document.getElementById('cbody').innerHTML='';
   closeMenu();
+  // 清空首页表单,方便换账号/换房间
+  var meEl=document.getElementById('me'), roomEl=document.getElementById('room'), pwEl=document.getElementById('pw');
+  if(roomEl) roomEl.value=''; if(pwEl) pwEl.value='';
   showScreen('s-home');
 }
 function connect(){
+  manualQuit=false;   // 每次正常进入前复位
   var proto = location.protocol==='https:' ? 'wss' : 'ws';
   ws = new WebSocket(proto+'://'+location.host);
   ws.onopen=function(){ setConn(true); ws.send(JSON.stringify({type:'join', room:ROOM, name:ME, avatar:MY_AVA, uid:MY_UID, pw:PW})); };
-  ws.onclose=function(){ setConn(false); setTimeout(connect, 2000); };
+  ws.onclose=function(){ setConn(false); if(!manualQuit){ setTimeout(function(){ if(!manualQuit) connect(); }, 2000); } };
   ws.onerror=function(){ setConn(false); };
   ws.onmessage=function(ev){
     var m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
