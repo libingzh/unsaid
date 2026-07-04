@@ -5,6 +5,7 @@ const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
 const db = require('./db');
+const llm = require('./llm');
 
 const PORT = process.env.PORT || 3000;
 // 导出接口密钥,防止别人随便下载聊天记录。部署时改成你自己的。
@@ -13,7 +14,36 @@ const EXPORT_KEY = process.env.EXPORT_KEY || 'change-me-please';
 const app = express();
 const server = http.createServer(app);
 
+app.use(express.json({ limit: '1mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
+
+// 回忆模式生成接口:前端把 TA 的相关语料 + 当前输入发来,后端用 Claude 模仿 TA 语气回应。
+// 未配置 API key(llm.ENABLED=false)时返回 {mode:'retrieval'},由前端回退纯检索。
+app.post('/memory-reply', async (req, res) => {
+  try {
+    const taName = String((req.body && req.body.taName) || 'TA').slice(0, 40);
+    const input = String((req.body && req.body.input) || '').slice(0, 1000);
+    const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
+    if (!input.trim()) return res.json({ mode: 'error', reply: '' });
+    if (!llm.ENABLED) return res.json({ mode: 'retrieval' }); // 未配 key,让前端走本地检索
+
+    const samples = llm.retrieveContext(messages, input, 6);
+    // 取最近几组问答做上下文(相对回忆发起者:who==='me' 是用户,'ta' 是对方)
+    const recentPairs = [];
+    for (let i = 0; i < messages.length; i++) {
+      if (messages[i].who === 'ta') {
+        const q = (i > 0 && messages[i-1].who === 'me') ? messages[i-1].text : '';
+        recentPairs.push({ q, a: messages[i].text });
+      }
+    }
+    const reply = await llm.callClaude({ taName, samples, recentPairs: recentPairs.slice(-4), input });
+    if (!reply) return res.json({ mode: 'retrieval' });
+    res.json({ mode: 'llm', reply });
+  } catch (e) {
+    // 出错也回退检索,保证可用
+    res.json({ mode: 'retrieval', error: String(e.message || e) });
+  }
+});
 
 // 数据导出接口(拿回本地做迭代)
 // json:  /export?key=密钥&format=json[&room=房间号]

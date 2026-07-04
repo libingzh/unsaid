@@ -259,7 +259,40 @@ function sim(a,b){return 0.65*jac(grams(a,2),grams(b,2))+0.35*jac(grams(a,1),gra
 function retrieve(input){var best=null,bs=0;pairs.forEach(function(p){if(!p.q)return;var s=sim(input,p.q);if(s>bs){bs=s;best=p;}});if(!best){taLines.forEach(function(t){var s=sim(input,t);if(s>bs){bs=s;best={q:'',a:t};}});}return{pair:best,score:bs};}
 function memBubble(t,w){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='msg '+(w==='me'?'mine':'theirs');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
 function memTip(t,k){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='tip '+(k||'sys');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
-function memSend(){var inp=document.getElementById('mi'),t=inp.value.trim();if(!t)return;memBubble(t,'me');inp.value='';if(/不想活|自杀|活不下去|结束自己|轻生/.test(t)){setTimeout(function(){memTip('⚠ 安全提醒(非检索结果)','sys');memBubble('我有点担心你。我只是基于记录的程序,接不住这些——但你值得被真正接住。如果难受,请联系信任的人或拨打心理援助热线。','ta');},400);return;}var r=retrieve(t);setTimeout(function(){if(r.pair&&r.score>=0.12){var pct=Math.round(r.score*100);if(r.pair.q)memTip('🔎 你曾说过"'+r.pair.q+'"(相近 '+pct+'%)→ '+TA+' 当时这样回','hit');else memTip('📎 引用 '+TA+' 说过的话(相近 '+pct+'%)','hit');memBubble(r.pair.a,'ta');}else{memBubble(fb[fbi%fb.length],'ta');fbi++;memTip('⚠ 记录里没有相近的话 —— 纯检索的局限','miss');}},450);}
+// 纯检索回退(无大模型或大模型失败时用)
+function memRetrieveReply(t){
+  var r=retrieve(t);
+  if(r.pair&&r.score>=0.12){
+    var pct=Math.round(r.score*100);
+    if(r.pair.q)memTip('🔎 你曾说过"'+r.pair.q+'"(相近 '+pct+'%)→ '+TA+' 当时这样回','hit');
+    else memTip('📎 引用 '+TA+' 说过的话(相近 '+pct+'%)','hit');
+    memBubble(r.pair.a,'ta');
+  } else {
+    memBubble(fb[fbi%fb.length],'ta');fbi++;
+    memTip('⚠ 记录里没有相近的话 —— 纯检索的局限','miss');
+  }
+}
+// 把回忆用到的对话整理成 {who:'me'|'ta',text}(相对回忆发起者)
+function memMessages(){
+  return messages.map(function(m){ return {who: m.mine?'me':'ta', text:m.text}; });
+}
+function memSend(){
+  var inp=document.getElementById('mi'),t=inp.value.trim();if(!t)return;
+  memBubble(t,'me');inp.value='';
+  if(/不想活|自杀|活不下去|结束自己|轻生/.test(t)){
+    setTimeout(function(){memTip('⚠ 安全提醒(非检索结果)','sys');memBubble('我有点担心你。我只是基于记忆的程序,接不住这些——但你值得被真正接住。如果难受,请联系信任的人或拨打心理援助热线。','ta');},400);
+    return;
+  }
+  // 先尝试大模型润色;失败/未配置则回退纯检索
+  var typing=setTimeout(function(){ memTip((TA+' 正在回忆…'),'sys'); }, 250);
+  fetch('/memory-reply',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({taName:TA, input:t, messages:memMessages()})
+  }).then(function(r){return r.json();}).then(function(j){
+    clearTimeout(typing);
+    if(j && j.mode==='llm' && j.reply){ memBubble(j.reply,'ta'); }
+    else { memRetrieveReply(t); }   // retrieval / error 都回退本地检索
+  }).catch(function(){ clearTimeout(typing); memRetrieveReply(t); });
+}
 
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
 
