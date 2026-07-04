@@ -14,15 +14,23 @@
 <style>
   :root{--plum:#6B5B95;--plum-d:#574a7d;--clay:#E8A87C;--warm:#FAF8F5;--ink:#3A3A44;--gray:#8a8a8a;--line:#e8e3dc;--ok:#2e7d4f;}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;background:linear-gradient(160deg,#3a3550,#5a4f7d 60%,#b98a6e);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 12px;color:var(--ink);}
-  .tag{color:#f3eef8;font-size:12px;opacity:.85;text-align:center;max-width:360px;line-height:1.6;margin-bottom:10px;}
-  .phone{width:360px;max-width:96vw;height:730px;max-height:90vh;background:var(--warm);border-radius:34px;box-shadow:0 22px 56px rgba(0,0,0,.4);overflow:hidden;border:8px solid #15131c;display:flex;flex-direction:column;position:relative;}
+  html,body{height:100%;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",sans-serif;background:#000;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--ink);}
+  .tag{display:none;} /* 顶部说明文字:仅电脑宽屏时显示 */
+  /* 手机:整屏铺满,无外壳 */
+  .phone{width:100%;height:100%;height:100dvh;max-width:100%;background:var(--warm);display:flex;flex-direction:column;position:relative;overflow:hidden;}
+  /* 电脑宽屏:居中显示成一个卡片,方便预览 */
+  @media (min-width:640px){
+    body{background:linear-gradient(160deg,#3a3550,#5a4f7d 60%,#b98a6e);padding:20px;}
+    .tag{display:block;color:#f3eef8;font-size:12px;opacity:.85;text-align:center;max-width:400px;line-height:1.6;margin-bottom:10px;}
+    .phone{width:400px;height:760px;max-height:92vh;border-radius:28px;box-shadow:0 22px 56px rgba(0,0,0,.4);border:8px solid #15131c;}
+  }
   .screen{flex:1;display:none;flex-direction:column;overflow:hidden;}
   .screen.active{display:flex;}
   .cbody::-webkit-scrollbar{width:0;}
   #s-home{background:linear-gradient(165deg,var(--plum),#8a6f9e 45%,var(--clay));color:#fff;overflow-y:auto;}
   #s-home::-webkit-scrollbar{width:0;}
-  #s-home .top{flex:1 0 auto;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;text-align:center;padding:24px 30px 8px;}
+  #s-home .top{flex:1 0 auto;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;text-align:center;padding:calc(24px + env(safe-area-inset-top)) 30px 8px;}
   .moon{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#f0d9c4);margin-bottom:14px;box-shadow:0 0 42px rgba(255,235,210,.6);flex-shrink:0;}
   .logo{font-family:"Songti SC",serif;font-size:44px;font-weight:700;letter-spacing:6px;}
   .logo-sub{font-size:13px;opacity:.92;margin-top:5px;}
@@ -35,12 +43,12 @@
   .ava.sel{border-color:#fff;transform:scale(1.12);box-shadow:0 0 12px rgba(255,255,255,.5);}
   .ava.img,.lava.img{background-size:cover;background-position:center;font-size:0;}
   #ava-upload{font-size:26px;color:#6B5B95;font-weight:400;}
-  #s-home .bottom{padding:14px 22px 22px;flex-shrink:0;}
+  #s-home .bottom{padding:14px 22px calc(22px + env(safe-area-inset-bottom));flex-shrink:0;}
   .btn{background:var(--plum);color:#fff;border:none;border-radius:22px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;width:100%;}
   .btn.clay{background:var(--clay);}
   .consent{font-size:11px;opacity:.85;text-align:center;margin-top:10px;line-height:1.6;}
   #s-home .fld{margin-top:10px;}
-  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);}
+  .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);padding-top:calc(12px + env(safe-area-inset-top));}
   .bar .nm{font-size:15px;font-weight:600;}
   .bar .sub2{font-size:10px;color:var(--gray);}
   .bar .back,.bar .menu{color:var(--plum);cursor:pointer;}
@@ -61,7 +69,7 @@
   .tip.sys{background:#eef4ff;border:1px solid #cdddff;color:#3b6fe0;}
   .tip.hit{background:#eaf5ea;border:1px solid #bcdcbc;color:var(--ok);}
   .tip.miss{background:#fdf3f2;border:1px solid #f0c9c4;color:#b5544a;}
-  .cin{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;align-items:center;}
+  .cin{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;align-items:center;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
   .cin input{flex:1;border:1.5px solid var(--line);border-radius:22px;padding:11px 16px;font-size:15px;background:var(--warm);transition:border-color .15s;}
   .cin input:focus{outline:none;border-color:var(--plum);}
   .snd{min-width:46px;height:46px;border-radius:50%;background:var(--plum);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(107,91,149,.35);transition:transform .12s,background .15s;}
@@ -202,7 +210,7 @@ function startSession(){
 function logout(){
   clearSession();
   try{ if(ws) ws.close(); }catch(e){}
-  ws=null; messages=[]; avatarMap={};
+  ws=null; messages=[]; avatarMap={}; peers={};
   document.getElementById('cbody').innerHTML='';
   closeMenu();
   showScreen('s-home');
@@ -238,9 +246,25 @@ function connect(){
       addTip('已进入房间「'+ROOM+'」。让对方也用同一房间号进来,就能实时聊了。','sys');
       (m.messages||[]).forEach(function(x){ pushMsg(x.sender, x.text, x.ts, x.avatar, x.uid); });
     } else if(m.type==='msg'){ pushMsg(m.sender, m.text, m.ts, m.avatar, m.uid);
-    } else if(m.type==='members'){ (m.members||[]).forEach(function(mm){ learnAvatar(mm.uid, mm.avatar); }); refreshAvatars();
-    } else if(m.type==='presence'){ learnAvatar(m.uid, m.avatar); refreshAvatars(); }
+    } else if(m.type==='members'){ (m.members||[]).forEach(function(mm){ learnAvatar(mm.uid, mm.avatar); if(mm.uid!==MY_UID){ peers[mm.uid]=mm.name; } }); refreshAvatars(); updatePresence();
+    } else if(m.type==='presence'){ learnAvatar(m.uid, m.avatar); if(m.uid!==MY_UID){ peers[m.uid]=m.name; } refreshAvatars(); updatePresence();
+    } else if(m.type==='offline'){ delete peers[m.uid]; updatePresence(); }
   };
+}
+// 记录在线的"对方"(uid->name),据此显示在线状态
+var peers={};
+function updatePresence(){
+  var names=Object.keys(peers).map(function(u){return peers[u];});
+  var el=document.getElementById('conn-txt');
+  var dot=document.getElementById('conn-dot');
+  if(!ws || ws.readyState!==1){ if(el)el.textContent='连接中…'; if(dot)dot.className='dot'; return; }
+  if(names.length>0){
+    if(el) el.textContent = names.join('、')+' 在线';
+    if(dot) dot.className='dot on';
+  } else {
+    if(el) el.textContent = '对方不在线';
+    if(dot) dot.className='dot';   // 灰点=对方不在
+  }
 }
 // 记住某 uid 的头像(不覆盖自己的本地选择,不被默认💬覆盖已知头像)
 function learnAvatar(uid, avatar){
@@ -256,8 +280,8 @@ function refreshAvatars(){
   });
 }
 function setConn(ok){
-  document.getElementById('conn-dot').className='dot'+(ok?' on':'');
-  document.getElementById('conn-txt').textContent = ok? ('已连接 · 你是'+ME) : '连接中…';
+  if(!ok){ peers={}; document.getElementById('conn-dot').className='dot'; document.getElementById('conn-txt').textContent='连接中…'; }
+  else { updatePresence(); }
 }
 // 判断是否是"我":优先用 uid;老消息没有 uid 时,退回按昵称判断
 function isMine(uid, sender){

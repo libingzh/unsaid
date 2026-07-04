@@ -1,11 +1,17 @@
-// 回忆模式的大模型接入(Claude / Anthropic)
+// 回忆模式的大模型接入(支持 DeepSeek 与 Claude)
 // 设计:RAG —— 用检索到的"TA 说过的相关原话"作为参考,让模型模仿 TA 的语气生成回应。
-// 安全:未配置 API key 时返回 null,由调用方自动回退到纯检索模式。
+// 安全:未配置任何 key 时返回 null,由调用方自动回退到纯检索模式。
+//
+// 供应商选择(自动):
+//   - 配了 DEEPSEEK_API_KEY → 用 DeepSeek(中国大陆可直接访问,推荐)
+//   - 只配了 ANTHROPIC_API_KEY → 用 Claude(注意:中国大陆服务器可能被 Anthropic 拒绝访问)
 const https = require('https');
 
-const API_KEY = process.env.ANTHROPIC_API_KEY || '';
-const MODEL = process.env.UNSAID_MODEL || 'claude-3-5-haiku-latest'; // 便宜够用,可换 sonnet
-const ENABLED = !!API_KEY;
+const DEEPSEEK_KEY = process.env.DEEPSEEK_API_KEY || '';
+const ANTHROPIC_KEY = process.env.ANTHROPIC_API_KEY || '';
+const PROVIDER = DEEPSEEK_KEY ? 'deepseek' : (ANTHROPIC_KEY ? 'anthropic' : 'none');
+const MODEL = process.env.UNSAID_MODEL || (PROVIDER === 'deepseek' ? 'deepseek-chat' : 'claude-3-5-haiku-latest');
+const ENABLED = PROVIDER !== 'none';
 
 // ---- 服务端检索:从消息里找出 TA 说过的、与输入最相关的话 ----
 function clean(s){ return (s||'').replace(/[\s,。,.!！?？、~…"'':：;；()（）]/g,''); }
@@ -45,38 +51,60 @@ function callClaude({ taName, samples, recentPairs, input }) {
 下面是「${taName}」真实说过的一些话(供你学习语气,不要原样照抄):
 ${samples.map(s => '「' + s + '」').join('\n')}`;
 
-    const userMsgs = [];
+    const turns = [];
     (recentPairs || []).forEach(p => {
-      if (p.q) userMsgs.push({ role: 'user', content: p.q });
-      if (p.a) userMsgs.push({ role: 'assistant', content: p.a });
+      if (p.q) turns.push({ role: 'user', content: p.q });
+      if (p.a) turns.push({ role: 'assistant', content: p.a });
     });
-    userMsgs.push({ role: 'user', content: input });
+    turns.push({ role: 'user', content: input });
 
-    const body = JSON.stringify({
-      model: MODEL,
-      max_tokens: 300,
-      system: sys,
-      messages: userMsgs
-    });
+    let opts, body;
+    if (PROVIDER === 'deepseek') {
+      // DeepSeek:OpenAI 兼容格式,system 作为第一条 message
+      body = JSON.stringify({
+        model: MODEL,
+        max_tokens: 300,
+        messages: [{ role: 'system', content: sys }].concat(turns)
+      });
+      opts = {
+        hostname: 'api.deepseek.com',
+        path: '/chat/completions',
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'authorization': 'Bearer ' + DEEPSEEK_KEY,
+          'content-length': Buffer.byteLength(body)
+        }
+      };
+    } else {
+      // Claude / Anthropic messages API
+      body = JSON.stringify({ model: MODEL, max_tokens: 300, system: sys, messages: turns });
+      opts = {
+        hostname: 'api.anthropic.com',
+        path: '/v1/messages',
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-api-key': ANTHROPIC_KEY,
+          'anthropic-version': '2023-06-01',
+          'content-length': Buffer.byteLength(body)
+        }
+      };
+    }
 
-    const req = https.request({
-      hostname: 'api.anthropic.com',
-      path: '/v1/messages',
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        'x-api-key': API_KEY,
-        'anthropic-version': '2023-06-01',
-        'content-length': Buffer.byteLength(body)
-      }
-    }, (res) => {
+    const req = https.request(opts, (res) => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {
         try {
           const j = JSON.parse(data);
           if (j.error) return reject(new Error(j.error.message || 'api error'));
-          const text = (j.content && j.content[0] && j.content[0].text || '').trim();
+          let text = '';
+          if (PROVIDER === 'deepseek') {
+            text = (j.choices && j.choices[0] && j.choices[0].message && j.choices[0].message.content || '').trim();
+          } else {
+            text = (j.content && j.content[0] && j.content[0].text || '').trim();
+          }
           resolve(text || null);
         } catch (e) { reject(e); }
       });
@@ -88,4 +116,4 @@ ${samples.map(s => '「' + s + '」').join('\n')}`;
   });
 }
 
-module.exports = { ENABLED, MODEL, retrieveContext, callClaude };
+module.exports = { ENABLED, PROVIDER, MODEL, retrieveContext, callClaude };

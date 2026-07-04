@@ -144,11 +144,26 @@ wss.on('connection', (ws) => {
       broadcast(meta.room, { type: 'msg', id: saved.id, sender: saved.sender, text: saved.text, ts: saved.ts, avatar: saved.avatar, uid: saved.uid });
     }
   });
-  ws.on('close', () => clients.delete(ws));
-  ws.on('error', () => clients.delete(ws));
+  function leave() {
+    const meta = clients.get(ws);
+    clients.delete(ws);
+    if (meta && meta.room && meta.uid) {
+      // 该 uid 是否还有其他在线连接(多标签页);没有才算真正离线
+      let stillOnline = false;
+      for (const [, m] of clients) {
+        if (m.room === meta.room && m.uid === meta.uid) { stillOnline = true; break; }
+      }
+      if (!stillOnline) {
+        broadcast(meta.room, { type: 'offline', uid: meta.uid, name: meta.name });
+      }
+    }
+  }
+  ws.on('close', leave);
+  ws.on('error', leave);
 });
 
 server.listen(PORT, () => {
   console.log(`Unsaid server running on port ${PORT}`);
+  console.log(`回忆模式大模型: ${llm.ENABLED ? llm.PROVIDER + ' (' + llm.MODEL + ')' : '未配置,使用纯检索'}`);
   console.log(`导出地址示例: http://localhost:${PORT}/export?key=${EXPORT_KEY}&format=json`);
 });
