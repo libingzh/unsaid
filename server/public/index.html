@@ -2,8 +2,15 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>Unsaid · 未尽</title>
+<!-- PWA:可添加到手机主屏幕,像 App 一样打开 -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#6B5B95">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="未尽">
+<link rel="apple-touch-icon" href="icon.png">
 <style>
   :root{--plum:#6B5B95;--plum-d:#574a7d;--clay:#E8A87C;--warm:#FAF8F5;--ink:#3A3A44;--gray:#8a8a8a;--line:#e8e3dc;--ok:#2e7d4f;}
   *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
@@ -26,6 +33,8 @@
   .ava-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
   .ava{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;border:2px solid transparent;background:rgba(255,255,255,.9);transition:.15s;}
   .ava.sel{border-color:#fff;transform:scale(1.12);box-shadow:0 0 12px rgba(255,255,255,.5);}
+  .ava.img,.lava.img{background-size:cover;background-position:center;font-size:0;}
+  #ava-upload{font-size:26px;color:#6B5B95;font-weight:400;}
   #s-home .bottom{padding:14px 22px 22px;flex-shrink:0;}
   .btn{background:var(--plum);color:#fff;border:none;border-radius:22px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;width:100%;}
   .btn.clay{background:var(--clay);}
@@ -88,7 +97,9 @@
             <div class="ava" data-a="🌙">🌙</div>
             <div class="ava" data-a="⭐">⭐</div>
             <div class="ava" data-a="🌷">🌷</div>
+            <div class="ava" id="ava-upload" title="上传照片">＋</div>
           </div>
+          <input type="file" id="ava-file" accept="image/*" style="display:none">
         </div>
         <div class="fld"><label>房间号(两人填一样)</label><input id="room" placeholder="例如:xiaolu-2026"></div>
         <div class="fld"><label>房间密码(两人填一样)</label><input id="pw" type="password" placeholder="首次进入即设为密码"></div>
@@ -117,6 +128,7 @@
       <div class="grip"></div>
       <div class="item" onclick="enterMem()"><span>💭 切换成"回忆模式"</span><span class="d">用已攒记录对话</span></div>
       <div class="item" onclick="showStats()"><span>📊 这段时间的记录</span><span class="d" id="cnt">—</span></div>
+      <div class="item" onclick="logout()"><span style="color:#b5544a">🚪 退出登录 / 换房间</span><span class="d">回到首页</span></div>
       <div class="item" onclick="closeMenu()"><span style="color:var(--gray)">关闭</span></div>
     </div>
   </div>
@@ -130,12 +142,43 @@ var MY_UID="";
 // 身份标识 = 房间号 + 名称。同房间同名视为同一人;换设备只要名称/房间/密码一致即同一身份。
 function makeUid(room, name){ return room + '::' + name; }
 
-// 头像选择器
+// 头像选择器(emoji)
 document.getElementById('ava-row').addEventListener('click', function(e){
   var el=e.target.closest('.ava'); if(!el) return;
+  if(el.id==='ava-upload'){ document.getElementById('ava-file').click(); return; }
   this.querySelectorAll('.ava').forEach(function(a){a.classList.remove('sel');});
   el.classList.add('sel'); MY_AVA=el.getAttribute('data-a');
 });
+// 上传照片当头像:压缩成 96px 方形 jpeg,base64 存储
+document.getElementById('ava-file').addEventListener('change', function(e){
+  var f=e.target.files[0]; if(!f) return;
+  var reader=new FileReader();
+  reader.onload=function(){
+    var img=new Image();
+    img.onload=function(){
+      var S=96, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
+      var ctx=cv.getContext('2d');
+      // 居中裁剪成正方形
+      var side=Math.min(img.width,img.height), sx=(img.width-side)/2, sy=(img.height-side)/2;
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, S, S);
+      var data=cv.toDataURL('image/jpeg', 0.8);
+      MY_AVA=data;
+      // 在上传按钮位置显示预览并选中
+      var up=document.getElementById('ava-upload');
+      document.querySelectorAll('#ava-row .ava').forEach(function(a){a.classList.remove('sel');});
+      applyAva(up, data); up.classList.add('sel');
+    };
+    img.src=reader.result;
+  };
+  reader.readAsDataURL(f);
+});
+
+// 登录信息本地持久化(刷新自动进入)
+function saveSession(){
+  try{ localStorage.setItem('unsaid_session', JSON.stringify({me:ME,room:ROOM,pw:PW,ava:MY_AVA})); }catch(e){}
+}
+function clearSession(){ try{ localStorage.removeItem('unsaid_session'); }catch(e){} }
+function loadSession(){ try{ return JSON.parse(localStorage.getItem('unsaid_session')||'null'); }catch(e){ return null; } }
 
 var PW="";
 function enter(){
@@ -144,12 +187,25 @@ function enter(){
   PW=(document.getElementById('pw').value||'');
   if(!ROOM){ alert('请填房间号,两人要一致'); return; }
   if(!PW){ alert('请填房间密码,两人要一致'); return; }
+  startSession();
+}
+// 真正进入(可被自动登录复用)
+function startSession(){
   MY_UID = makeUid(ROOM, ME);               // 身份 = 房间+名称
   avatarMap[MY_UID]=MY_AVA;                 // 我的头像按 uid 记
   document.getElementById('c-title').textContent='房间:'+ROOM;
   showScreen('s-chat');
   document.getElementById('cbody').innerHTML='';
   connect();
+}
+// 退出登录 / 换房间
+function logout(){
+  clearSession();
+  try{ if(ws) ws.close(); }catch(e){}
+  ws=null; messages=[]; avatarMap={};
+  document.getElementById('cbody').innerHTML='';
+  closeMenu();
+  showScreen('s-home');
 }
 function connect(){
   var proto = location.protocol==='https:' ? 'wss' : 'ws';
@@ -167,11 +223,13 @@ function connect(){
       else { why='房间信息有误'; tip=''; }
       try{ ws.close(); }catch(e){}
       ws=null;
+      clearSession();               // 进入失败,清掉可能存错的会话,避免自动登录死循环
       showScreen('s-home');
       alert('进入失败:'+why+'。\n'+tip);
       return;
     }
     if(m.type==='join_ok'){
+      saveSession();                // 进入成功,记住登录信息,下次刷新自动进
       if(m.created){ addTip('房间已创建,你设定了密码。把房间号和密码告诉对方即可一起进来。','sys'); }
       return;
     }
@@ -194,7 +252,7 @@ function learnAvatar(uid, avatar){
 function refreshAvatars(){
   document.querySelectorAll('#cbody .lava').forEach(function(el){
     var key=el.getAttribute('data-key'); var mine=el.getAttribute('data-mine')==='1';
-    el.textContent = mine ? MY_AVA : (avatarMap[key] || DEFAULT_AVA);
+    applyAva(el, mine ? MY_AVA : (avatarMap[key] || DEFAULT_AVA));
   });
 }
 function setConn(ok){
@@ -219,10 +277,15 @@ function pushMsg(sender, text, ts, avatar, uid){
   document.getElementById('cnt').textContent=messages.length+' 条';
 }
 function avaOf(mine, key){ return mine ? MY_AVA : (avatarMap[key] || DEFAULT_AVA); }
+// 把头像值渲染到元素:data:开头当图片(背景),否则当 emoji 文字
+function applyAva(el, val){
+  if(val && val.indexOf('data:')===0){ el.classList.add('img'); el.style.backgroundImage='url('+val+')'; el.textContent=''; }
+  else { el.classList.remove('img'); el.style.backgroundImage=''; el.textContent=val||DEFAULT_AVA; }
+}
 function render(sender, text, mine, key){
   var b=document.getElementById('cbody');
   var line=document.createElement('div'); line.className='line '+(mine?'mine':'theirs');
-  var av=document.createElement('div'); av.className='lava'; av.textContent=avaOf(mine, key);
+  var av=document.createElement('div'); av.className='lava'; applyAva(av, avaOf(mine, key));
   av.setAttribute('data-key', key); av.setAttribute('data-mine', mine?'1':'0');
   var d=document.createElement('div'); d.className='msg '+(mine?'mine':'theirs');
   var w=document.createElement('span'); w.className='who'; w.textContent=sender;
@@ -299,6 +362,18 @@ function showScreen(id){document.querySelectorAll('.screen').forEach(function(s)
 // 绑定回车发送(带输入法保护),替代原来的 inline onkeydown
 bindEnter('ci', send);
 bindEnter('mi', memSend);
+
+// 自动登录:本机存过会话就直接进聊天,不用重填
+(function autoLogin(){
+  var s=loadSession();
+  if(s && s.room && s.me && s.pw){
+    ME=s.me; ROOM=s.room; PW=s.pw; MY_AVA=s.ava||MY_AVA;
+    // 同步首页表单(万一自动登录失败退回首页,字段已填好)
+    var meEl=document.getElementById('me'), roomEl=document.getElementById('room'), pwEl=document.getElementById('pw');
+    if(meEl) meEl.value=ME; if(roomEl) roomEl.value=ROOM; if(pwEl) pwEl.value=PW;
+    startSession();
+  }
+})();
 </script>
 </body>
 </html>

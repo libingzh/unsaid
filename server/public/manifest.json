@@ -1,0 +1,12 @@
+{
+  "name": "未尽 · Unsaid",
+  "short_name": "未尽",
+  "description": "陪你把没说完的话说完",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#3a3550",
+  "theme_color": "#6B5B95",
+  "icons": [
+    { "src": "icon.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" }
+  ]
+}

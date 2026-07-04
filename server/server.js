@@ -118,7 +118,7 @@ wss.on('connection', (ws) => {
       const meta = {
         room: room,
         name: name,
-        avatar: String(msg.avatar || '💬').slice(0, 8),
+        avatar: String(msg.avatar || '💬').slice(0, 60000), // emoji 或 上传图片的 base64
         uid: room + '::' + name   // 身份标识:房间+名称
       };
       clients.set(ws, meta);
