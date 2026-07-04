@@ -13,11 +13,12 @@
   .screen{flex:1;display:none;flex-direction:column;overflow:hidden;}
   .screen.active{display:flex;}
   .cbody::-webkit-scrollbar{width:0;}
-  #s-home{background:linear-gradient(165deg,var(--plum),#8a6f9e 45%,var(--clay));color:#fff;}
-  #s-home .top{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;text-align:center;padding:36px 30px;}
-  .moon{width:66px;height:66px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#f0d9c4);margin-bottom:22px;box-shadow:0 0 46px rgba(255,235,210,.6);}
-  .logo{font-family:"Songti SC",serif;font-size:50px;font-weight:700;letter-spacing:6px;}
-  .logo-sub{font-size:14px;opacity:.92;margin-top:6px;}
+  #s-home{background:linear-gradient(165deg,var(--plum),#8a6f9e 45%,var(--clay));color:#fff;overflow-y:auto;}
+  #s-home::-webkit-scrollbar{width:0;}
+  #s-home .top{flex:1 0 auto;display:flex;flex-direction:column;justify-content:flex-start;align-items:center;text-align:center;padding:24px 30px 8px;}
+  .moon{width:56px;height:56px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#f0d9c4);margin-bottom:14px;box-shadow:0 0 42px rgba(255,235,210,.6);flex-shrink:0;}
+  .logo{font-family:"Songti SC",serif;font-size:44px;font-weight:700;letter-spacing:6px;}
+  .logo-sub{font-size:13px;opacity:.92;margin-top:5px;}
   .fld{width:100%;margin-top:14px;text-align:left;}
   .fld label{font-size:12px;opacity:.9;display:block;margin-bottom:5px;}
   .fld input{width:100%;border:none;border-radius:12px;padding:12px;font-size:15px;background:rgba(255,255,255,.94);color:var(--ink);}
@@ -25,10 +26,11 @@
   .ava-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap;margin-top:8px;}
   .ava{width:46px;height:46px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;cursor:pointer;border:2px solid transparent;background:rgba(255,255,255,.9);transition:.15s;}
   .ava.sel{border-color:#fff;transform:scale(1.12);box-shadow:0 0 12px rgba(255,255,255,.5);}
-  #s-home .bottom{padding:22px;}
+  #s-home .bottom{padding:14px 22px 22px;flex-shrink:0;}
   .btn{background:var(--plum);color:#fff;border:none;border-radius:22px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;width:100%;}
   .btn.clay{background:var(--clay);}
   .consent{font-size:11px;opacity:.85;text-align:center;margin-top:10px;line-height:1.6;}
+  #s-home .fld{margin-top:10px;}
   .bar{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:#fff;border-bottom:1px solid var(--line);}
   .bar .nm{font-size:15px;font-weight:600;}
   .bar .sub2{font-size:10px;color:var(--gray);}
@@ -125,16 +127,8 @@ var MY_AVA="🐰";              // 我选的头像
 var avatarMap={};              // uid -> 头像
 var DEFAULT_AVA="💬";
 var MY_UID="";
-// 稳定身份:按"昵称"存本地。同名重进 → 同一身份(历史保留);
-// 同一浏览器不同昵称(如测试时两个窗口)→ 不同身份,左右正确区分。
-function makeUid(name){
-  var key = 'unsaid_uid::' + name;
-  try{
-    var u = localStorage.getItem(key);
-    if(!u){ u = 'u_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2,10); localStorage.setItem(key, u); }
-    return u;
-  }catch(e){ return 'u_' + Math.random().toString(36).slice(2,12); }
-}
+// 身份标识 = 房间号 + 名称。同房间同名视为同一人;换设备只要名称/房间/密码一致即同一身份。
+function makeUid(room, name){ return room + '::' + name; }
 
 // 头像选择器
 document.getElementById('ava-row').addEventListener('click', function(e){
@@ -150,7 +144,7 @@ function enter(){
   PW=(document.getElementById('pw').value||'');
   if(!ROOM){ alert('请填房间号,两人要一致'); return; }
   if(!PW){ alert('请填房间密码,两人要一致'); return; }
-  MY_UID = makeUid(ME);                     // 按昵称确定稳定身份
+  MY_UID = makeUid(ROOM, ME);               // 身份 = 房间+名称
   avatarMap[MY_UID]=MY_AVA;                 // 我的头像按 uid 记
   document.getElementById('c-title').textContent='房间:'+ROOM;
   showScreen('s-chat');
@@ -166,11 +160,15 @@ function connect(){
   ws.onmessage=function(ev){
     var m; try{ m=JSON.parse(ev.data); }catch(e){ return; }
     if(m.type==='join_denied'){
-      var why = m.reason==='wrong_pw' ? '房间密码不对' : (m.reason==='no_pw'?'请填写密码':'房间信息有误');
+      var why, tip;
+      if(m.reason==='name_taken'){ why='这个名称已被占用'; tip='房间里已有人用了「'+ME+'」这个名字,请换一个不同的名称再进。'; }
+      else if(m.reason==='wrong_pw'){ why='房间密码不对'; tip='该房间号已存在,请与对方核对密码;或换一个新房间号(将由你设定密码)。'; }
+      else if(m.reason==='no_pw'){ why='请填写密码'; tip=''; }
+      else { why='房间信息有误'; tip=''; }
       try{ ws.close(); }catch(e){}
       ws=null;
       showScreen('s-home');
-      alert('进入失败:'+why+'。\n提示:该房间号已存在,请与对方核对密码;或换一个新房间号(将由你设定密码)。');
+      alert('进入失败:'+why+'。\n'+tip);
       return;
     }
     if(m.type==='join_ok'){

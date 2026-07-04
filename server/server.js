@@ -71,20 +71,28 @@ wss.on('connection', (ws) => {
     if (msg.type === 'join') {
       const room = String(msg.room || '').trim();
       const pw = String(msg.pw || '');
+      const name = String(msg.name || '匿名').trim() || '匿名';
       // 校验房间密码(首次进入即设定密码)
       const chk = db.checkRoom(room, pw);
       if (!chk.ok) {
         ws.send(JSON.stringify({ type: 'join_denied', reason: chk.reason }));
         return;
       }
+      // 身份 = 房间 + 名称。同一房间内名称必须唯一:若已有在线成员用了同名,拒绝。
+      for (const [, m] of clients) {
+        if (m.room === room && m.name === name) {
+          ws.send(JSON.stringify({ type: 'join_denied', reason: 'name_taken' }));
+          return;
+        }
+      }
       const meta = {
         room: room,
-        name: String(msg.name || '匿名'),
+        name: name,
         avatar: String(msg.avatar || '💬').slice(0, 8),
-        uid: String(msg.uid || '').slice(0, 64)
+        uid: room + '::' + name   // 身份标识:房间+名称
       };
       clients.set(ws, meta);
-      ws.send(JSON.stringify({ type: 'join_ok', created: !!chk.created }));
+      ws.send(JSON.stringify({ type: 'join_ok', created: !!chk.created, uid: meta.uid }));
       const history = db.getHistory(meta.room);
       ws.send(JSON.stringify({ type: 'history', messages: history }));
       // 把房间内所有在线成员(含刚进来的自己)的头像发给新来的人
