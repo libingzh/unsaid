@@ -138,6 +138,14 @@ wss.on('connection', (ws) => {
       const saved = db.addMessage(meta.room, meta.name, text, meta.avatar, meta.uid);
       broadcast(meta.room, { type: 'msg', id: saved.id, sender: saved.sender, text: saved.text, ts: saved.ts, avatar: saved.avatar, uid: saved.uid });
     }
+    // 聊天中修改头像:更新该连接的头像,并广播给房间,让对方实时刷新
+    if (msg.type === 'set_avatar') {
+      const meta = clients.get(ws);
+      if (!meta || !meta.room) return;
+      meta.avatar = String(msg.avatar || '💬').slice(0, 60000);
+      clients.set(ws, meta);
+      broadcast(meta.room, { type: 'presence', uid: meta.uid, name: meta.name, avatar: meta.avatar });
+    }
   });
   function leave() {
     const meta = clients.get(ws);

@@ -124,6 +124,7 @@
         <span class="menu" onclick="openMenu()">⋯</span>
       </div>
       <div class="cbody" id="cbody"></div>
+      <input type="file" id="chat-ava-file" accept="image/*" style="display:none">
       <div class="cin"><input id="ci" placeholder="发消息…"><button class="snd" onclick="send()" aria-label="发送"><svg viewBox="0 0 24 24"><path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a1 1 0 00-1.4.92V9.5c0 .5.37.92.87.98L15 12 2.87 13.52a1 1 0 00-.87.98v4.98a1 1 0 001.4.92z"/></svg></button></div>
     </div>
     <div class="screen" id="s-mem">
@@ -134,6 +135,7 @@
     <div class="mask" id="mask" onclick="closeMenu()"></div>
     <div class="sheet" id="sheet">
       <div class="grip"></div>
+      <div class="item" onclick="changeAvatar()"><span>🖼 更换头像</span><span class="d">上传照片,双方同步</span></div>
       <div class="item" onclick="enterMem()"><span>💭 切换成"回忆模式"</span><span class="d">用已攒记录对话</span></div>
       <div class="item" onclick="showStats()"><span>📊 这段时间的记录</span><span class="d" id="cnt">—</span></div>
       <div class="item" onclick="logout()"><span style="color:#b5544a">🚪 退出登录 / 换房间</span><span class="d">回到首页</span></div>
@@ -159,28 +161,43 @@ document.getElementById('ava-row').addEventListener('click', function(e){
   var up=document.getElementById('ava-upload'); if(up){ up.classList.remove('img'); up.style.backgroundImage=''; up.textContent='＋'; }
   el.classList.add('sel'); MY_AVA=el.getAttribute('data-a'); saveAvatarPref();
 });
-// 上传照片当头像:压缩成 96px 方形 jpeg,base64 存储
-document.getElementById('ava-file').addEventListener('change', function(e){
-  var f=e.target.files[0]; if(!f) return;
+// 把图片文件压缩成 96px 方形 jpeg 的 base64,回调返回 dataURL
+function compressImage(file, cb){
   var reader=new FileReader();
   reader.onload=function(){
     var img=new Image();
     img.onload=function(){
       var S=96, cv=document.createElement('canvas'); cv.width=S; cv.height=S;
       var ctx=cv.getContext('2d');
-      // 居中裁剪成正方形
       var side=Math.min(img.width,img.height), sx=(img.width-side)/2, sy=(img.height-side)/2;
       ctx.drawImage(img, sx, sy, side, side, 0, 0, S, S);
-      var data=cv.toDataURL('image/jpeg', 0.8);
-      MY_AVA=data; saveAvatarPref();
-      // 在上传按钮位置显示预览并选中
-      var up=document.getElementById('ava-upload');
-      document.querySelectorAll('#ava-row .ava').forEach(function(a){a.classList.remove('sel');});
-      applyAva(up, data); up.classList.add('sel');
+      cb(cv.toDataURL('image/jpeg', 0.8));
     };
     img.src=reader.result;
   };
-  reader.readAsDataURL(f);
+  reader.readAsDataURL(file);
+}
+// 首页:上传照片当头像
+document.getElementById('ava-file').addEventListener('change', function(e){
+  var f=e.target.files[0]; if(!f) return;
+  compressImage(f, function(data){
+    MY_AVA=data; saveAvatarPref();
+    var up=document.getElementById('ava-upload');
+    document.querySelectorAll('#ava-row .ava').forEach(function(a){a.classList.remove('sel');});
+    applyAva(up, data); up.classList.add('sel');
+  });
+});
+// 聊天中更换头像:选图 → 压缩 → 存本地 → 广播给对方 → 刷新自己的气泡
+function changeAvatar(){ closeMenu(); document.getElementById('chat-ava-file').click(); }
+document.getElementById('chat-ava-file').addEventListener('change', function(e){
+  var f=e.target.files[0]; if(!f) return;
+  compressImage(f, function(data){
+    MY_AVA=data; saveAvatarPref();
+    avatarMap[MY_UID]=MY_AVA;
+    if(ws && ws.readyState===1){ ws.send(JSON.stringify({type:'set_avatar', avatar:MY_AVA})); }
+    refreshAvatars();   // 更新自己已发消息的头像
+  });
+  e.target.value='';
 });
 
 // 登录信息本地持久化(刷新自动进入)
