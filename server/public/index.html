@@ -247,7 +247,54 @@ function startSession(){
   showScreen('s-chat');
   document.getElementById('cbody').innerHTML='';
   connect();
+  requestNotifyPermission();                // 进入聊天时请求通知授权
 }
+
+// ===== 新消息提示(第二层:桌面通知 + 标签闪烁 + 提示音)=====
+var unread=0, baseTitle='未尽', titleTimer=null;
+function requestNotifyPermission(){
+  try{
+    if('Notification' in window && Notification.permission==='default'){
+      Notification.requestPermission().catch(function(){});
+    }
+  }catch(e){}
+}
+function playBeep(){
+  try{
+    var C=window.AudioContext||window.webkitAudioContext; if(!C) return;
+    var ctx=new C(), o=ctx.createOscillator(), g=ctx.createGain();
+    o.type='sine'; o.frequency.value=660; o.connect(g); g.connect(ctx.destination);
+    g.gain.setValueAtTime(0.0001,ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.15,ctx.currentTime+0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+0.35);
+    o.start(); o.stop(ctx.currentTime+0.36);
+  }catch(e){}
+}
+function flashTitle(){
+  unread++;
+  if(titleTimer) return;
+  var on=false;
+  titleTimer=setInterval(function(){
+    document.title = on ? baseTitle : ('('+unread+') 新消息 · '+baseTitle);
+    on=!on;
+  }, 900);
+}
+function clearNotify(){
+  unread=0; if(titleTimer){ clearInterval(titleTimer); titleTimer=null; } document.title=baseTitle;
+}
+function notifyNewMessage(sender, text){
+  flashTitle();
+  playBeep();
+  try{
+    if('Notification' in window && Notification.permission==='granted'){
+      var n=new Notification(sender+' 发来消息', { body:text, tag:'unsaid-msg' });
+      n.onclick=function(){ window.focus(); clearNotify(); n.close(); };
+    }
+  }catch(e){}
+}
+// 回到页面就清除提示
+document.addEventListener('visibilitychange', function(){ if(!document.hidden) clearNotify(); });
+window.addEventListener('focus', clearNotify);
 // 退出登录 / 换房间
 var manualQuit=false;   // 主动退出标记,避免自动重连把人拽回房间
 function logout(){
@@ -293,7 +340,7 @@ function connect(){
       messages=[]; document.getElementById('cbody').innerHTML='';
       addTip('已进入房间「'+ROOM+'」。让对方也用同一房间号进来,就能实时聊了。','sys');
       (m.messages||[]).forEach(function(x){ pushMsg(x.sender, x.text, x.ts, x.avatar, x.uid); });
-    } else if(m.type==='msg'){ pushMsg(m.sender, m.text, m.ts, m.avatar, m.uid);
+    } else if(m.type==='msg'){ pushMsg(m.sender, m.text, m.ts, m.avatar, m.uid, true);
     } else if(m.type==='members'){ (m.members||[]).forEach(function(mm){ learnAvatar(mm.uid, mm.avatar); if(mm.uid!==MY_UID){ peers[mm.uid]=mm.name; } }); refreshAvatars(); updatePresence();
     } else if(m.type==='presence'){ learnAvatar(m.uid, m.avatar); if(m.uid!==MY_UID){ peers[m.uid]=m.name; } refreshAvatars(); updatePresence();
     } else if(m.type==='offline'){ delete peers[m.uid]; updatePresence(); }
@@ -336,7 +383,7 @@ function isMine(uid, sender){
   if(uid) return uid===MY_UID;
   return sender===ME;
 }
-function pushMsg(sender, text, ts, avatar, uid){
+function pushMsg(sender, text, ts, avatar, uid, isLive){
   var mine = isMine(uid, sender);
   var key = uid || sender;                       // 头像索引:优先 uid,没有则用昵称
   // 只在"非我、且带头像"时更新映射;我自己的头像始终以本地选择为准,不被老💬覆盖
@@ -347,6 +394,8 @@ function pushMsg(sender, text, ts, avatar, uid){
   if(!mine) TA=sender;
   render(sender, text, mine, key);
   document.getElementById('cnt').textContent=messages.length+' 条';
+  // 实时收到对方消息、且页面不在前台时,提醒
+  if(isLive && !mine && document.hidden){ notifyNewMessage(sender, text); }
 }
 function avaOf(mine, key){ return mine ? MY_AVA : (avatarMap[key] || DEFAULT_AVA); }
 // 把头像值渲染到元素:data:开头当图片(背景),否则当 emoji 文字
