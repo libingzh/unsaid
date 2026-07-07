@@ -3,9 +3,36 @@
 const express = require('express');
 const http = require('http');
 const path = require('path');
+const fs = require('fs');
+const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const db = require('./db');
 const llm = require('./llm');
+
+// 回忆模式对话日志(用于优化):每行一条 JSON,存到 server/data/memory_log.jsonl
+const LOG_PATH = path.join(__dirname, 'data', 'memory_log.jsonl');
+fs.mkdirSync(path.dirname(LOG_PATH), { recursive: true });
+function logMemoryTurn(entry) {
+  const id = crypto.randomBytes(6).toString('hex');
+  const rec = Object.assign({ id, ts: Date.now(), score: 0 }, entry);
+  try { fs.appendFileSync(LOG_PATH, JSON.stringify(rec) + '\n'); } catch (e) {}
+  return id;
+}
+function setFeedback(logId, score) {
+  // 简单实现:整文件读入→改该行→写回(个人项目量级足够)
+  let lines;
+  try { lines = fs.readFileSync(LOG_PATH, 'utf8').split('\n'); } catch (e) { return false; }
+  let changed = false;
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].trim()) continue;
+    try {
+      const o = JSON.parse(lines[i]);
+      if (o.id === logId) { o.score = score; o.rated_ts = Date.now(); lines[i] = JSON.stringify(o); changed = true; break; }
+    } catch (e) {}
+  }
+  if (changed) { try { fs.writeFileSync(LOG_PATH, lines.join('\n')); } catch (e) {} }
+  return changed;
+}
 
 const PORT = process.env.PORT || 3000;
 // 导出接口密钥,防止别人随便下载聊天记录。部署时改成你自己的。
@@ -38,11 +65,33 @@ app.post('/memory-reply', async (req, res) => {
     }
     const reply = await llm.callClaude({ taName, samples, recentPairs: recentPairs.slice(-4), input });
     if (!reply) return res.json({ mode: 'retrieval' });
-    res.json({ mode: 'llm', reply });
+    // 记录这次问答,供优化用;返回 logId 供前端回传评分
+    const logId = logMemoryTurn({ taName, input, samples, reply, provider: llm.PROVIDER, model: llm.MODEL });
+    res.json({ mode: 'llm', reply, logId });
   } catch (e) {
     // 出错也回退检索,保证可用
     res.json({ mode: 'retrieval', error: String(e.message || e) });
   }
+});
+
+// 评分反馈:前端点 👍/👎 时回传,写回对应日志条目
+app.post('/memory-feedback', (req, res) => {
+  const logId = String((req.body && req.body.logId) || '');
+  const score = Number((req.body && req.body.score) || 0);
+  if (!logId) return res.json({ ok: false });
+  const ok = setFeedback(logId, score);
+  res.json({ ok });
+});
+
+// 回忆模式训练日志导出(含每次问答与你的评分),用于优化模型
+// /memory-log?key=密钥
+app.get('/memory-log', (req, res) => {
+  if (req.query.key !== EXPORT_KEY) return res.status(403).send('forbidden: 密钥不对');
+  let content = '';
+  try { content = fs.readFileSync(LOG_PATH, 'utf8'); } catch (e) { content = ''; }
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="memory_log.jsonl"');
+  res.send(content);
 });
 
 // 数据导出接口(拿回本地做迭代)

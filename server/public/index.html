@@ -70,6 +70,10 @@
   .tip.hit{background:#eaf5ea;border:1px solid #bcdcbc;color:var(--ok);}
   .tip.miss{background:#fdf3f2;border:1px solid #f0c9c4;color:#b5544a;}
   .cin{display:flex;gap:10px;padding:10px 12px;border-top:1px solid var(--line);background:#fff;align-items:center;padding-bottom:calc(10px + env(safe-area-inset-bottom));}
+  .rate{display:flex;gap:8px;align-self:flex-start;margin:-4px 0 2px 6px;}
+  .rate button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:2px 10px;font-size:13px;cursor:pointer;line-height:1.6;color:var(--gray);}
+  .rate button.on{background:var(--plum);color:#fff;border-color:var(--plum);}
+  .rate.done{opacity:.7;}
   .cin input{flex:1;border:1.5px solid var(--line);border-radius:22px;padding:11px 16px;font-size:15px;background:var(--warm);transition:border-color .15s;}
   .cin input:focus{outline:none;border-color:var(--plum);}
   .snd{min-width:46px;height:46px;border-radius:50%;background:var(--plum);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(107,91,149,.35);transition:transform .12s,background .15s;}
@@ -388,7 +392,27 @@ function grams(s,n){s=clean(s);var g={};if(s.length<n){if(s)g[s]=1;return g;}for
 function jac(ga,gb){var ka=Object.keys(ga),kb=Object.keys(gb);if(!ka.length||!kb.length)return 0;var n=0;ka.forEach(function(k){if(gb[k])n++;});return n/(ka.length+kb.length-n);}
 function sim(a,b){return 0.65*jac(grams(a,2),grams(b,2))+0.35*jac(grams(a,1),grams(b,1));}
 function retrieve(input){var best=null,bs=0;pairs.forEach(function(p){if(!p.q)return;var s=sim(input,p.q);if(s>bs){bs=s;best=p;}});if(!best){taLines.forEach(function(t){var s=sim(input,t);if(s>bs){bs=s;best={q:'',a:t};}});}return{pair:best,score:bs};}
-function memBubble(t,w){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='msg '+(w==='me'?'mine':'theirs');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
+function memBubble(t,w,logId){
+  var b=document.getElementById('mbody');
+  var d=document.createElement('div');d.className='msg '+(w==='me'?'mine':'theirs');d.textContent=t;b.appendChild(d);
+  // AI 回复(带 logId)下面挂 👍/👎 评分
+  if(w==='ta' && logId){
+    var r=document.createElement('div'); r.className='rate';
+    var up=document.createElement('button'); up.textContent='👍 像 TA';
+    var dn=document.createElement('button'); dn.textContent='👎 不像';
+    up.onclick=function(){ rate(r,logId,1,up,dn); };
+    dn.onclick=function(){ rate(r,logId,-1,dn,up); };
+    r.appendChild(up); r.appendChild(dn); b.appendChild(r);
+  }
+  b.scrollTop=b.scrollHeight;
+}
+function rate(rowEl, logId, score, onBtn, offBtn){
+  if(rowEl.classList.contains('done')) return;
+  onBtn.classList.add('on'); rowEl.classList.add('done');
+  onBtn.disabled=true; offBtn.disabled=true; offBtn.style.opacity='.4';
+  fetch('/memory-feedback',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({logId:logId, score:score})}).catch(function(){});
+}
 function memTip(t,k){var b=document.getElementById('mbody');var d=document.createElement('div');d.className='tip '+(k||'sys');d.textContent=t;b.appendChild(d);b.scrollTop=b.scrollHeight;}
 // 纯检索回退(无大模型或大模型失败时用)
 function memRetrieveReply(t){
@@ -420,7 +444,7 @@ function memSend(){
     body:JSON.stringify({taName:TA, input:t, messages:memMessages()})
   }).then(function(r){return r.json();}).then(function(j){
     clearTimeout(typing);
-    if(j && j.mode==='llm' && j.reply){ memBubble(j.reply,'ta'); }
+    if(j && j.mode==='llm' && j.reply){ memBubble(j.reply,'ta', j.logId); }  // 带 logId 才显示评分
     else { memRetrieveReply(t); }   // retrieval / error 都回退本地检索
   }).catch(function(){ clearTimeout(typing); memRetrieveReply(t); });
 }
