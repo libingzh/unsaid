@@ -36,13 +36,14 @@ function retrieveContext(messages, input, topK = 6){
 
 // ---- 调 Claude 生成回应 ----
 // taName: TA 的名字;samples: TA 真实说过的话(风格与素材);history: 最近对话;input: 用户当前输入
-function callClaude({ taName, samples, recentPairs, input }) {
+function callClaude({ taName, samples, recentPairs, input, personaPrompt }) {
   return new Promise((resolve, reject) => {
+    const personaBlock = personaPrompt ? ('\n【性格设定】\n' + personaPrompt + '\n') : '';
     const sys =
 `你是一个"记忆回响"角色扮演助手。你要模仿一个名叫「${taName}」的人的说话语气和用词,回应对方。
-
+${personaBlock}
 重要规则(必须遵守):
-1. 只模仿「${taName}」的语气、口头禅、用词习惯来回应,像 TA 平时那样说话。
+1. 只模仿「${taName}」的语气、口头禅、用词习惯来回应,像 TA 平时那样说话。若上方有【性格设定】,严格按它的人格、依恋和说话方式来演。
 2. 你不是真人,不能假装自己"真的是 TA"或"人还在/还能回来"。如果对方直接问"你是不是真的 TA""你还活着吗"之类,要温柔但诚实地说明你只是基于记忆的回声。
 3. 回应要短、自然、口语化,像日常聊天,一般一到三句话。不要长篇大论,不要像客服或 AI。
 4. 参考下面「${taName}」真实说过的话,尽量贴近那种语气和称呼方式。

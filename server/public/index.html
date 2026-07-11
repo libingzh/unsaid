@@ -74,6 +74,30 @@
   .rate button{border:1px solid var(--line);background:#fff;border-radius:14px;padding:2px 10px;font-size:13px;cursor:pointer;line-height:1.6;color:var(--gray);}
   .rate button.on{background:var(--plum);color:#fff;border-color:var(--plum);}
   .rate.done{opacity:.7;}
+  /* 性格问卷 */
+  #s-quiz{background:var(--warm);}
+  .qprog{height:4px;background:var(--line);flex-shrink:0;}
+  .qprog-bar{height:100%;width:0;background:var(--plum);transition:width .25s;}
+  .qbody{flex:1;overflow-y:auto;padding:20px 18px;}
+  .qbody::-webkit-scrollbar{width:0;}
+  .qfoot{padding:12px 18px calc(14px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid var(--line);flex-shrink:0;}
+  .qh{font-size:17px;font-weight:600;font-family:"Songti SC",serif;margin-bottom:6px;color:var(--ink);}
+  .qintro{font-size:12.5px;color:var(--gray);line-height:1.7;margin-bottom:16px;}
+  .qcard{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px;margin-bottom:12px;}
+  .qtext{font-size:14.5px;color:var(--ink);margin-bottom:12px;line-height:1.5;}
+  .qtext .qn{color:var(--plum);font-weight:600;margin-right:6px;}
+  .qopts{display:flex;gap:6px;}
+  .qopts.col{flex-direction:column;}
+  .qopt{flex:1;border:1.5px solid var(--line);border-radius:10px;padding:9px 6px;font-size:12px;text-align:center;cursor:pointer;color:var(--gray);background:var(--warm);transition:.12s;line-height:1.3;}
+  .qopts.col .qopt{text-align:left;padding:11px 13px;font-size:13.5px;}
+  .qopt.sel{background:var(--plum);color:#fff;border-color:var(--plum);}
+  .qfield{margin-bottom:14px;}
+  .qfield label{font-size:13px;color:var(--ink);display:block;margin-bottom:6px;font-weight:500;}
+  .qfield input,.qfield textarea{width:100%;border:1.5px solid var(--line);border-radius:10px;padding:11px;font-size:14px;font-family:inherit;background:var(--warm);color:var(--ink);}
+  .qfield input:focus,.qfield textarea:focus{outline:none;border-color:var(--plum);}
+  .qpick{display:flex;gap:10px;}
+  .qpick .qopt{padding:16px 12px;font-size:14px;}
+  .qcite{font-size:10.5px;color:var(--gray);margin-top:14px;line-height:1.6;text-align:center;}
   .cin input{flex:1;border:1.5px solid var(--line);border-radius:22px;padding:11px 16px;font-size:15px;background:var(--warm);transition:border-color .15s;}
   .cin input:focus{outline:none;border-color:var(--plum);}
   .snd{min-width:46px;height:46px;border-radius:50%;background:var(--plum);color:#fff;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(107,91,149,.35);transition:transform .12s,background .15s;}
@@ -136,9 +160,22 @@
       <div class="cbody" id="mbody"></div>
       <div class="cin"><input id="mi" placeholder="说点什么…"><button class="snd" onclick="memSend()" aria-label="发送"><svg viewBox="0 0 24 24"><path d="M3.4 20.4l17.45-7.48a1 1 0 000-1.84L3.4 3.6a1 1 0 00-1.4.92V9.5c0 .5.37.92.87.98L15 12 2.87 13.52a1 1 0 00-.87.98v4.98a1 1 0 001.4.92z"/></svg></button></div>
     </div>
+    <!-- 性格问卷 -->
+    <div class="screen" id="s-quiz">
+      <div class="bar">
+        <span class="back" onclick="quizBack()">← 返回</span>
+        <div style="text-align:center;"><div class="nm" id="quiz-title">建立性格库</div><div class="sub2" id="quiz-sub">为 TA 建立性格档案</div></div>
+        <span style="width:24px"></span>
+      </div>
+      <div class="qprog"><div class="qprog-bar" id="qprog-bar"></div></div>
+      <div class="qbody scroll" id="qbody"></div>
+      <div class="qfoot"><button class="btn" id="qnext" onclick="quizNext()">下一步</button></div>
+    </div>
+
     <div class="mask" id="mask" onclick="closeMenu()"></div>
     <div class="sheet" id="sheet">
       <div class="grip"></div>
+      <div class="item" onclick="startQuiz()"><span>🧬 建立/完善性格库</span><span class="d">让 TA 更像 TA</span></div>
       <div class="item" onclick="changeAvatar()"><span>🖼 更换头像</span><span class="d">上传照片,双方同步</span></div>
       <div class="item" onclick="enterMem()"><span>💭 切换成"回忆模式"</span><span class="d">用已攒记录对话</span></div>
       <div class="item" onclick="showStats()"><span>📊 这段时间的记录</span><span class="d" id="cnt">—</span></div>
@@ -490,7 +527,7 @@ function memSend(){
   // 先尝试大模型润色;失败/未配置则回退纯检索
   var typing=setTimeout(function(){ memTip((TA+' 正在回忆…'),'sys'); }, 250);
   fetch('/memory-reply',{method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({taName:TA, input:t, messages:memMessages()})
+    body:JSON.stringify({taName:TA, input:t, room:ROOM, messages:memMessages()})
   }).then(function(r){return r.json();}).then(function(j){
     clearTimeout(typing);
     if(j && j.mode==='llm' && j.reply){ memBubble(j.reply,'ta', j.logId); }  // 带 logId 才显示评分
@@ -499,6 +536,174 @@ function memSend(){
 }
 
 function showScreen(id){document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});document.getElementById(id).classList.add('active');}
+
+/* ============ 性格问卷 ============ */
+// IPIP-50 他评版(题号即计分键顺序,1..50)
+var IPIP=[
+"TA 是聚会中的活跃分子。","TA 不太关心别人。","TA 总是有所准备。","TA 很容易感到压力大。","TA 词汇丰富、很会用词。",
+"TA 话不多。","TA 对人感兴趣、爱关注别人。","TA 东西乱放。","TA 大部分时候都很放松。","TA 很难理解抽象的东西。",
+"TA 和人相处时很自在。","TA 会说话伤人/损人。","TA 注意细节。","TA 常为一些事担心。","TA 想象力丰富。",
+"TA 习惯待在人群边缘、不显眼。","TA 能体谅别人的感受。","TA 常把事情弄得一团糟。","TA 很少情绪低落。","TA 对抽象的东西不感兴趣。",
+"TA 会主动开启话题。","TA 对别人的烦恼不太上心。","TA 会立刻把该做的事做完。","TA 很容易被打扰/心烦。","TA 常有很棒的点子。",
+"TA 没什么话说。","TA 心肠很软。","TA 常忘记把东西放回原处。","TA 很容易生气/烦躁。","TA 想象力一般。",
+"TA 在聚会上会和很多不同的人聊天。","TA 其实不太在意别人。","TA 喜欢有条理、有秩序。","TA 情绪起伏大、常变。","TA 理解事情很快。",
+"TA 不喜欢引起别人注意。","TA 会为别人花时间。","TA 会逃避自己的责任。","TA 情绪常常大起大落。","TA 会用一些比较难的词。",
+"TA 不介意成为焦点。","TA 能感受到别人的情绪。","TA 会按计划行事。","TA 很容易被激怒。","TA 喜欢花时间思考、反省。",
+"TA 在陌生人面前很安静。","TA 能让人感到自在。","TA 对自己的事要求严格、一丝不苟。","TA 常常情绪低落。","TA 满脑子都是想法。"];
+var IPIP_OPTS=["非常不符合","比较不符合","不确定","比较符合","非常符合"];
+// ECR-S 他评版(1..12)
+var ECR=[
+"TA 需要另一半反复保证 TA 是被爱的。","TA 有时会担心另一半没有自己那么在乎这段关系。","TA 想和另一半非常亲密,有时会把对方吓到。","TA 会担心自己被抛弃。",
+"当另一半开始和 TA 变亲密时,TA 会想往后退。","TA 想和另一半亲近,但又总忍不住退缩。","TA 不太自在向另一半敞开心扉。","TA 更喜欢不要和另一半太过亲密。",
+"TA 有心事会转向另一半倾诉。","TA 会和另一半讨论自己的问题和担忧。","TA 很容易依赖另一半。","TA 觉得靠近、依赖另一半是件容易的事。"];
+var ECR_OPTS=["非常不同意","","","中立","","","非常同意"];
+// 方案B 情景题
+var SCENE=[
+{q:"当你说\"今天好累\",TA 最可能:",opts:["立刻心疼地安慰你","嘴上嫌你不听话、心里担心","讲道理让你注意休息","沉默,不太回应"]},
+{q:"你们吵架时,TA 通常:",opts:["直接说出不满","冷战、不理人","先低头哄你","讲道理分析对错"]},
+{q:"你提到\"要不要分开/离开\",TA 会:",opts:["激烈挽留","沉默回避","假装没听见、岔开","冷静地跟你谈"]},
+{q:"TA 表达在乎的方式更偏向:",opts:["直接说\"我爱你/想你\"","用行动(带吃的、提醒穿衣)","开玩笑/逗你","默默做,不说"]},
+{q:"TA 心情不好时:",opts:["会主动找你倾诉","自己憋着不说","变得烦躁易怒","装没事"]}];
+
+var quiz={schema:'A', step:0, steps:[], ipip:{}, ecr:{}, scene:{}, extra:{}};
+function startQuiz(){
+  closeMenu();
+  quiz={schema:'A', step:0, steps:[], ipip:{}, ecr:{}, scene:{}, extra:{}};
+  quiz.steps=['choose']; // 后续按选定方案再补
+  document.getElementById('quiz-title').textContent='建立性格库';
+  showScreen('s-quiz');
+  renderQuiz();
+}
+function quizBack(){
+  if(quiz.step>0){ quiz.step--; renderQuiz(); }
+  else showScreen('s-chat');
+}
+function setSteps(){
+  if(quiz.schema==='A'){
+    // 每 10 题一页:IPIP 5页 + ECR 2页 + 语气填空 1页
+    quiz.steps=['choose','ipip0','ipip1','ipip2','ipip3','ipip4','ecr0','ecr1','styleA'];
+  } else {
+    quiz.steps=['choose','ipip0','ipip1','ipip2','ipip3','ipip4','scene','styleB'];
+  }
+}
+function quizNext(){
+  var key=quiz.steps[quiz.step];
+  // 校验当前页填完(量表页)
+  if(key && key.indexOf('ipip')===0){
+    var pg=parseInt(key.slice(4)); for(var i=pg*10;i<pg*10+10;i++){ if(!quiz.ipip[i+1]){ alert('还有题没答哦'); return; } }
+  }
+  if(key && key.indexOf('ecr')===0){
+    var pg2=parseInt(key.slice(3)); var lo=pg2*6, hi=Math.min(lo+6,12); for(var j=lo;j<hi;j++){ if(!quiz.ecr[j+1]){ alert('还有题没答哦'); return; } }
+  }
+  if(quiz.step>=quiz.steps.length-1){ submitQuiz(); return; }
+  quiz.step++; renderQuiz();
+}
+function renderQuiz(){
+  var key=quiz.steps[quiz.step];
+  var b=document.getElementById('qbody'); b.innerHTML='';
+  document.getElementById('qprog-bar').style.width=Math.round((quiz.step)/(quiz.steps.length-1)*100)+'%';
+  document.getElementById('qnext').textContent = (quiz.step>=quiz.steps.length-1)?'完成 · 生成性格库':'下一步';
+  if(key==='choose'){ renderChoose(b); return; }
+  if(key.indexOf('ipip')===0){ renderIpip(b, parseInt(key.slice(4))); return; }
+  if(key.indexOf('ecr')===0){ renderEcr(b, parseInt(key.slice(3))); return; }
+  if(key==='scene'){ renderScene(b); return; }
+  if(key==='styleA'){ renderStyle(b,'A'); return; }
+  if(key==='styleB'){ renderStyle(b,'B'); return; }
+}
+function renderChoose(b){
+  b.innerHTML='<div class="qh">选一种建立方式</div><div class="qintro">两种方式基于不同的心理学思路,可分别试试,用回忆模式的评分对比哪种更像 TA。</div>';
+  var wrap=document.createElement('div'); wrap.className='qpick';
+  var a=document.createElement('div'); a.className='qopt'+(quiz.schema==='A'?' sel':''); a.innerHTML='<b>A · 结构化</b><br><span style="font-size:11px">量化人格(大五+依恋),稳定可控</span>';
+  var bb=document.createElement('div'); bb.className='qopt'+(quiz.schema==='B'?' sel':''); bb.innerHTML='<b>B · 叙事卡</b><br><span style="font-size:11px">人物小传+金句,更有人味</span>';
+  a.onclick=function(){ quiz.schema='A'; setSteps(); renderQuiz(); };
+  bb.onclick=function(){ quiz.schema='B'; setSteps(); renderQuiz(); };
+  wrap.appendChild(a); wrap.appendChild(bb); b.appendChild(wrap);
+  b.innerHTML+='<div class="qcite">量表:IPIP-50(Goldberg 1992,公开领域)、ECR-S(Wei et al. 2007)。你在替 TA 作答(他评)。</div>';
+  if(!quiz.steps.length||quiz.steps.length===1) setSteps();
+}
+function renderIpip(b, page){
+  b.innerHTML='<div class="qh">TA 是个怎样的人 ('+(page+1)+'/5)</div><div class="qintro">根据你对 TA 的了解,判断每句话有多符合 TA。</div>';
+  for(var i=page*10;i<page*10+10;i++){ b.appendChild(likertCard(i+1, IPIP[i], IPIP_OPTS, quiz.ipip, 5)); }
+}
+function renderEcr(b, page){
+  b.innerHTML='<div class="qh">TA 在亲密关系里 ('+(page+1)+'/2)</div><div class="qintro">想象 TA 在一段亲密关系中的样子。1=非常不同意,7=非常同意。</div>';
+  var lo=page*6, hi=Math.min(lo+6,12);
+  for(var i=lo;i<hi;i++){ b.appendChild(likertCard(i+1, ECR[i], null, quiz.ecr, 7)); }
+}
+function likertCard(idx, text, labels, store, n){
+  var c=document.createElement('div'); c.className='qcard';
+  var t=document.createElement('div'); t.className='qtext'; t.innerHTML='<span class="qn">'+idx+'.</span>'+text; c.appendChild(t);
+  var opts=document.createElement('div'); opts.className='qopts';
+  for(var v=1;v<=n;v++){(function(v){
+    var o=document.createElement('div'); o.className='qopt'+(store[idx]===v?' sel':'');
+    o.textContent = labels? (labels[v-1]||v) : v;
+    o.onclick=function(){ store[idx]=v; opts.querySelectorAll('.qopt').forEach(function(x){x.classList.remove('sel');}); o.classList.add('sel'); };
+    opts.appendChild(o);
+  })(v);}
+  c.appendChild(opts); return c;
+}
+function renderScene(b){
+  b.innerHTML='<div class="qh">TA 会怎么反应</div><div class="qintro">选出最像 TA 的一项。</div>';
+  SCENE.forEach(function(s,idx){
+    var c=document.createElement('div'); c.className='qcard';
+    var t=document.createElement('div'); t.className='qtext'; t.textContent=s.q; c.appendChild(t);
+    var opts=document.createElement('div'); opts.className='qopts col';
+    s.opts.forEach(function(op,oi){
+      var o=document.createElement('div'); o.className='qopt'+(quiz.scene[idx]===oi?' sel':''); o.textContent=op;
+      o.onclick=function(){ quiz.scene[idx]=oi; opts.querySelectorAll('.qopt').forEach(function(x){x.classList.remove('sel');}); o.classList.add('sel'); };
+      opts.appendChild(o);
+    });
+    c.appendChild(opts); b.appendChild(c);
+  });
+}
+function renderStyle(b, mode){
+  b.innerHTML='<div class="qh">TA 说话的样子</div><div class="qintro">这些让 TA 的语气更像本人(可留空)。</div>';
+  function field(labelText, key, ph, textarea){
+    var f=document.createElement('div'); f.className='qfield';
+    var l=document.createElement('label'); l.textContent=labelText; f.appendChild(l);
+    var inp=document.createElement(textarea?'textarea':'input'); if(textarea) inp.rows=3;
+    inp.placeholder=ph; inp.value=quiz.extra[key]||'';
+    inp.oninput=function(){ quiz.extra[key]=inp.value; };
+    f.appendChild(inp); return f;
+  }
+  b.appendChild(field('TA 怎么称呼你?','calls_user','例如:傻瓜 / 宝'));
+  b.appendChild(field('TA 的口头禅(用、隔开)','catchphrases','例如:傻瓜、早点睡'));
+  if(mode==='A'){
+    b.appendChild(field('TA 说话的语气','tone','例如:温柔、爱撒娇、偶尔毒舌'));
+    b.appendChild(field('TA 在乎什么(用、隔开)','values','例如:陪伴、被在乎'));
+  } else {
+    b.appendChild(field('一句话形容 TA','one_liner','例如:嘴硬心软,总担心你熬夜'));
+    b.appendChild(field('多说几句 TA 是怎样的人','sketch','TA 平时的性格、在关系里的样子…',true));
+    b.appendChild(field('TA 的几句经典原话(用、隔开)','golden_lines','例如:傻瓜早点睡、说好的拉钩'));
+  }
+}
+function splitList(s){ return (s||'').split(/[、,，\n]/).map(function(x){return x.trim();}).filter(Boolean); }
+function submitQuiz(){
+  var payload={ room:ROOM, schema:quiz.schema,
+    identity:{ name:TA, relation:'', calls_user:quiz.extra.calls_user||'' },
+    ipip:quiz.ipip };
+  if(quiz.schema==='A'){
+    payload.ecr=quiz.ecr;
+    payload.tone=quiz.extra.tone||'';
+    payload.catchphrases=splitList(quiz.extra.catchphrases);
+    payload.values=splitList(quiz.extra.values);
+  } else {
+    payload.one_liner=quiz.extra.one_liner||'';
+    payload.sketch=quiz.extra.sketch||'';
+    payload.golden_lines=splitList(quiz.extra.golden_lines);
+    payload.catchphrases=splitList(quiz.extra.catchphrases);
+    // 情景题 → scene_reactions
+    payload.scene_reactions=[];
+    for(var k in quiz.scene){ payload.scene_reactions.push({ when:SCENE[k].q.replace(/^当|:$/g,''), then:SCENE[k].opts[quiz.scene[k]] }); }
+  }
+  document.getElementById('qnext').textContent='生成中…'; document.getElementById('qnext').disabled=true;
+  fetch('/persona',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)})
+    .then(function(r){return r.json();}).then(function(j){
+      document.getElementById('qnext').disabled=false; document.getElementById('qnext').textContent='完成';
+      if(j&&j.ok){ alert('性格库已建立!回忆模式会用它让 TA 更像 TA。'); showScreen('s-chat'); }
+      else{ alert('保存失败,请重试'); }
+    }).catch(function(){ document.getElementById('qnext').disabled=false; alert('网络异常,请重试'); });
+}
 
 // 绑定回车发送(带输入法保护),替代原来的 inline onkeydown
 bindEnter('ci', send);

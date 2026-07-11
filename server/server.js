@@ -8,6 +8,7 @@ const crypto = require('crypto');
 const { WebSocketServer } = require('ws');
 const db = require('./db');
 const llm = require('./llm');
+const persona = require('./persona');
 
 // 回忆模式对话日志(用于优化):每行一条 JSON,存到 server/data/memory_log.jsonl
 const LOG_PATH = path.join(__dirname, 'data', 'memory_log.jsonl');
@@ -50,12 +51,16 @@ app.post('/memory-reply', async (req, res) => {
   try {
     const taName = String((req.body && req.body.taName) || 'TA').slice(0, 40);
     const input = String((req.body && req.body.input) || '').slice(0, 1000);
+    const room = String((req.body && req.body.room) || '');
     const messages = Array.isArray(req.body && req.body.messages) ? req.body.messages : [];
     if (!input.trim()) return res.json({ mode: 'error', reply: '' });
     if (!llm.ENABLED) return res.json({ mode: 'retrieval' }); // 未配 key,让前端走本地检索
 
+    // 载入该房间的性格库,转成人设说明注入
+    const p = room ? persona.loadPersona(room) : null;
+    const personaPrompt = persona.personaToPrompt(p);
+
     const samples = llm.retrieveContext(messages, input, 6);
-    // 取最近几组问答做上下文(相对回忆发起者:who==='me' 是用户,'ta' 是对方)
     const recentPairs = [];
     for (let i = 0; i < messages.length; i++) {
       if (messages[i].who === 'ta') {
@@ -63,10 +68,9 @@ app.post('/memory-reply', async (req, res) => {
         recentPairs.push({ q, a: messages[i].text });
       }
     }
-    const reply = await llm.callClaude({ taName, samples, recentPairs: recentPairs.slice(-4), input });
+    const reply = await llm.callClaude({ taName, samples, recentPairs: recentPairs.slice(-4), input, personaPrompt });
     if (!reply) return res.json({ mode: 'retrieval' });
-    // 记录这次问答,供优化用;返回 logId 供前端回传评分
-    const logId = logMemoryTurn({ taName, input, samples, reply, provider: llm.PROVIDER, model: llm.MODEL });
+    const logId = logMemoryTurn({ taName, input, samples, reply, provider: llm.PROVIDER, model: llm.MODEL, schema: p ? p.schema : null });
     res.json({ mode: 'llm', reply, logId });
   } catch (e) {
     // 出错也回退检索,保证可用
@@ -81,6 +85,24 @@ app.post('/memory-feedback', (req, res) => {
   if (!logId) return res.json({ ok: false });
   const ok = setFeedback(logId, score);
   res.json({ ok });
+});
+
+// 性格库:提交问卷 → 计分 → 存档
+app.post('/persona', (req, res) => {
+  try {
+    const room = String((req.body && req.body.room) || '');
+    if (!room) return res.json({ ok: false, error: 'no_room' });
+    const built = persona.buildPersona(req.body || {});
+    const ok = persona.savePersona(room, built);
+    res.json({ ok, persona: built });
+  } catch (e) {
+    res.json({ ok: false, error: String(e.message || e) });
+  }
+});
+// 性格库:读取当前房间的性格库(供档案编辑/展示)
+app.get('/persona', (req, res) => {
+  const room = String(req.query.room || '');
+  res.json({ persona: room ? persona.loadPersona(room) : null });
 });
 
 // 回忆模式训练日志导出(含每次问答与你的评分),用于优化模型
